@@ -107,8 +107,9 @@
 
 <!-- sources -->
 <main id="v-sources" class="view page" hidden>
-  <div class="rowh"><h2 data-i18n="nav_sources"></h2><button id="newsvc" class="primary" data-i18n="add_service"></button></div>
+  <h2 data-i18n="nav_sources"></h2>
   <p class="muted" data-i18n="sources_help"></p>
+  <div><button id="newsvc" class="primary" data-i18n="add_service"></button></div>
   <div id="conns" class="cards"></div>
 </main>
 
@@ -134,6 +135,15 @@
     <div class="rowh"><button type="button" class="ghost" data-close data-i18n="cancel"></button><button class="primary" data-i18n="save"></button></div>
     <div id="svcmsg" class="warn"></div>
   </form>
+</div>
+
+<!-- service picker (from the Convert page) -->
+<div id="m-pick" class="overlay" hidden>
+  <div class="card pad wide">
+    <div class="rowh"><h2 data-i18n="pick_title"></h2><button class="ghost sm" data-close>✕</button></div>
+    <button id="pick-new" class="primary big" data-i18n="add_service"></button>
+    <div id="picklist"></div>
+  </div>
 </div>
 
 <!-- catalog modal -->

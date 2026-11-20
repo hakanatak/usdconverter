@@ -87,3 +87,6 @@ details.adv{margin-top:14px;border:1px solid var(--line);border-radius:10px;padd
 /* step 3 */
 .s3{display:flex;flex-direction:row;overflow:hidden}
 #hint{text-align:center}
+
+#picklist{margin-top:12px;max-height:50vh;overflow:auto}
+#v-sources #newsvc{margin:4px 0 6px}

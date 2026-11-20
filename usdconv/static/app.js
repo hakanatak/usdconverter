@@ -4,7 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 /* ---------- i18n ---------- */
 const T = {
-  tr: { timeout: 'Sunucu yanıt vermedi (zaman aşımı). Tekrar deneyin.', st1: 'Veri', st2: 'Ayarlar', st3: 'Önizleme', s1_title: 'Verinizi ekleyin', s2_title: 'Neredeyse hazır', s2_sub: 'Ayarları veriden otomatik doldurduk. İsterseniz değiştirin, değilse doğrudan önizleyin.',
+  tr: { pick_title: 'Servis seçin', pick_empty: 'Kayıtlı servis yok. Önce bir servis ekleyin.', timeout: 'Sunucu yanıt vermedi (zaman aşımı). Tekrar deneyin.', st1: 'Veri', st2: 'Ayarlar', st3: 'Önizleme', s1_title: 'Verinizi ekleyin', s2_title: 'Neredeyse hazır', s2_sub: 'Ayarları veriden otomatik doldurduk. İsterseniz değiştirin, değilse doğrudan önizleyin.',
     or: 'ya da', alt_service: 'Servisten ekle', alt_service_sub: 'ArcGIS Server · GeoServer/WFS · GeoJSON URL', alt_demo: 'Demo veriyle dene', alt_demo_sub: 'Yol, bina ve ağaç içeren örnek bölge',
     next: 'Devam →', back: '← Geri', advanced: 'Gelişmiş ayarlar', tweak: '← Ayarları değiştir', again: 'Yeni dönüşüm', reading: 'Okunuyor…',
     needs_crs: 'Koordinat sistemi dosyada yok. Hangisi?', apply: 'Uygula', other: 'Diğer…', n_feat: 'nesne',
@@ -28,7 +28,7 @@ const T = {
     mock: 'Geliştirme modu: gerçek ödeme alınmaz.', login_req: 'Bu servis giriş istiyor; yukarıdan bilgileri girip "Bağlan"a basın.',
     j_name: 'Ad', j_status: 'Durum', j_price: 'Tutar', j_date: 'Tarih', j_paid: 'Ödendi', open: 'Aç', no_jobs: 'Henüz iş yok.', confirm_del: 'Servis silinsin mi?',
     need_layer: 'En az bir katman ekleyin.', geom: 'geometri', count: 'kayıt', fields: 'alan', line: 'çizgi', polygon: 'alan', point: 'nokta' },
-  en: { timeout: 'The server did not respond (timeout). Try again.', st1: 'Data', st2: 'Settings', st3: 'Preview', s1_title: 'Add your data', s2_title: 'Almost ready', s2_sub: 'We filled in the settings from your data. Change them if you like, or go straight to the preview.',
+  en: { pick_title: 'Choose a service', pick_empty: 'No saved services. Add one first.', timeout: 'The server did not respond (timeout). Try again.', st1: 'Data', st2: 'Settings', st3: 'Preview', s1_title: 'Add your data', s2_title: 'Almost ready', s2_sub: 'We filled in the settings from your data. Change them if you like, or go straight to the preview.',
     or: 'or', alt_service: 'Add from a service', alt_service_sub: 'ArcGIS Server · GeoServer/WFS · GeoJSON URL', alt_demo: 'Try with demo data', alt_demo_sub: 'Sample area with roads, buildings and trees',
     next: 'Continue →', back: '← Back', advanced: 'Advanced settings', tweak: '← Change settings', again: 'New conversion', reading: 'Reading…',
     needs_crs: 'The file has no coordinate system. Which one?', apply: 'Apply', other: 'Other…', n_feat: 'features',
@@ -385,7 +385,7 @@ async function loadConns() { const r = await api('/api/connections'); if (r.ok) 
 const kindName = { arcgis: 'ArcGIS Server', wfs: 'GeoServer / WFS', geojson_url: 'GeoJSON URL' };
 function renderConns() {
   const box = $('#conns'); box.innerHTML = '';
-  if (!conns.length) { box.append(el('div', { className: 'empty' }, t('no_conns'))); return; }
+  if (!conns.length) box.append(el('div', { className: 'empty' }, t('no_conns')));
   conns.forEach((c) => box.append(el('div', { className: 'card conn' },
     el('div', { className: 'rowh' }, el('b', {}, c.name), el('span', { className: 'badge' }, kindName[c.kind])),
     el('div', { className: 'u' }, c.url),
@@ -396,14 +396,16 @@ function renderConns() {
 const hints = { arcgis: 'https://sunucu/arcgis/rest/services  (veya …/FeatureServer, …/FeatureServer/0)', wfs: 'https://sunucu/geoserver/ows  (veya …/wfs)', geojson_url: 'https://…/veri.geojson' };
 const showSvc = () => { const k = document.querySelector('input[name=kind]:checked').value; $('#svchint').textContent = hints[k]; };
 document.querySelectorAll('input[name=kind]').forEach((r) => (r.onchange = showSvc));
-$('#newsvc').onclick = () => { $('#svcform').reset(); $('#svcmsg').textContent = ''; showSvc(); $('#m-svc').hidden = false; };
+function openNewService() { $('#svcform').reset(); $('#svcmsg').textContent = ''; showSvc(); $('#m-pick').hidden = true; $('#m-svc').hidden = false; $('#svcname').focus(); }
+$('#newsvc').onclick = openNewService;
+$('#pick-new').onclick = openNewService;
 $('#svcform').onsubmit = async (e) => {
   e.preventDefault();
   const r = await jpost('/api/connections', { kind: document.querySelector('input[name=kind]:checked').value, name: $('#svcname').value, url: $('#svcurl').value });
   const b = await r.json();
   if (!r.ok) { $('#svcmsg').textContent = errText(b); return; }
   $('#m-svc').hidden = true; await loadConns();
-  if (view === 'sources') openCatalog(conns.find((c) => c.id === b.id));
+  openCatalog(conns.find((c) => c.id === b.id));
 };
 document.querySelectorAll('[data-close]').forEach((b) => (b.onclick = () => b.closest('.overlay').hidden = true));
 document.querySelectorAll('.overlay').forEach((o) => o.addEventListener('mousedown', (e) => { if (e.target === o && o.id !== 'auth') o.hidden = true; }));
@@ -468,13 +470,12 @@ function renderCatalog() {
 }
 $('#addsrc').onclick = async () => {
   await loadConns();
-  if (!conns.length) { location.hash = '#/sources'; $('#newsvc').click(); return; }
-  if (conns.length === 1) { openCatalog(conns[0]); return; }
-  const pick = el('div', { className: 'overlay' }, el('div', { className: 'card pad wide' }, el('h2', {}, t('nav_sources')),
-    conns.map((c) => el('div', { className: 'crow' }, el('div', { className: 'nm' }, el('b', {}, c.name), el('div', { className: 'meta' }, kindName[c.kind])),
-      el('button', { className: 'primary sm', on: { click: () => { pick.remove(); openCatalog(c); } } }, t('catalog')))),
-    el('button', { className: 'ghost', on: { click: () => pick.remove() } }, t('cancel'))));
-  document.body.append(pick);
+  const box = $('#picklist'); box.innerHTML = '';
+  if (!conns.length) box.append(el('p', { className: 'muted' }, t('pick_empty')));
+  conns.forEach((c) => box.append(el('div', { className: 'crow' },
+    el('div', { className: 'nm' }, el('b', {}, c.name), el('div', { className: 'meta' }, `${kindName[c.kind]} · ${c.url}`)),
+    el('button', { className: 'primary sm', on: { click: () => { $('#m-pick').hidden = true; openCatalog(c); } } }, t('catalog')))));
+  $('#m-pick').hidden = false;
 };
 
 /* ---------- jobs ---------- */
