@@ -185,7 +185,8 @@ def build(spec: JobSpec, loaded: list[tuple[LayerSpec, dict]], max_features: int
     # 2. anchor: bbox centre in target CRS, snapped to the tile grid. Fixed once per project.
     cx, cy = tr.transform(clon, clat)
     ts = spec.tile_size_m
-    anchor = (round(cx / ts) * ts, round(cy / ts) * ts)
+    anchor = ((spec.anchor_x, spec.anchor_y) if spec.anchor_x is not None
+              else (round(cx / ts) * ts, round(cy / ts) * ts))
 
     layers = []
     for layer, arr, props, fixed, skipped in prepared:

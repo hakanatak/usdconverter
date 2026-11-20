@@ -243,3 +243,13 @@ def test_wall_normals_point_outward():
     assert horiz.sum() == 8  # 4 walls x 2 triangles
     assert (np.einsum("ij,ij->i", n[horiz][:, :2], cen[horiz][:, :2]) > 0).all()
     assert (n[~horiz][:, 2] > 0).all()  # roof faces up
+
+
+def test_manual_anchor():
+    spec = demo_spec(crs_target="EPSG:32633", anchor_x=390000.0, anchor_y=5819000.0)
+    res = engine.build(spec, [(l, sources.demo_data(l.url)) for l in spec.layers])
+    assert res.anchor == (390000.0, 5819000.0)
+    with pytest.raises(Exception):
+        demo_spec(anchor_x=1.0, anchor_y=2.0)            # needs explicit CRS
+    with pytest.raises(Exception):
+        demo_spec(crs_target="EPSG:32633", anchor_x=1.0)  # both or none

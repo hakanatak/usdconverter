@@ -6,7 +6,7 @@ Upload GIS data (GeoJSON, ArcGIS REST, GeoServer/WFS), set parameters, **preview
 
 ## Flow
 
-1. Add layers (upload / URL / ArcGIS / WFS / built-in demo) and set parameters: target CRS (default **auto UTM**), tile size, line width, extrusion height or height field, Z offset, colour.
+1. Add layers (upload / URL / ArcGIS / WFS / built-in demo) and set parameters: target CRS (default **auto UTM**), optional source-CRS override per layer, optional manual reference point (anchor X/Y in the target CRS; requires an explicit EPSG target), tile size, line width, extrusion height or height field, Z offset, colour.
 2. **Convert & preview** → free, *sampled* GLB preview with watermark, plus a price quote (features-based).
 3. **Pay** (Stripe Checkout) → the full package unlocks: `scene.usda` + payloaded tiles (`tiles/*.usda`), `scene.glb`, `report.json`.
 

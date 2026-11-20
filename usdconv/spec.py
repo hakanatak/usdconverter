@@ -2,7 +2,7 @@
 import re
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class LayerSpec(BaseModel):
@@ -35,10 +35,20 @@ class JobSpec(BaseModel):
     name: str = Field("Untitled", max_length=100)
     crs_target: str = Field("auto_utm", pattern=r"^(auto_utm|EPSG:\d{4,6})$")
     tile_size_m: float = Field(1000.0, ge=50, le=20000)
+    anchor_x: Optional[float] = None   # optional manual anchor, in the target CRS (metres)
+    anchor_y: Optional[float] = None
     base_elevation_m: float = Field(0.0, ge=-1000, le=10000)
     layers: list[LayerSpec] = Field(min_length=1, max_length=20)
     outputs_usd: bool = True
     outputs_glb: bool = True
+
+    @model_validator(mode="after")
+    def _anchor(self):
+        if (self.anchor_x is None) != (self.anchor_y is None):
+            raise ValueError("anchor_x and anchor_y must be given together")
+        if self.anchor_x is not None and self.crs_target == "auto_utm":
+            raise ValueError("a manual anchor needs an explicit EPSG target CRS")
+        return self
 
     @field_validator("layers")
     @classmethod

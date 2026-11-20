@@ -4,14 +4,14 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const T = {
   tr: { tagline:'CBS verisini 3B OpenUSD\'ye dönüştür', project:'Proje', name:'Ad', crs:'Hedef koordinat sistemi', autoutm:'Otomatik UTM',
-    tile:'Karo boyutu (m)', base:'Taban kotu (m)', layers:'Katmanlar', addlayer:'+ Katman', demo:'Demo veri', convert:'Dönüştür ve önizle',
+    anchor:'Referans noktası X / Y (hedef CRS, opsiyonel)', srccrs:'Kaynak CRS (opsiyonel, örn. EPSG:3857)', tile:'Karo boyutu (m)', base:'Taban kotu (m)', layers:'Katmanlar', addlayer:'+ Katman', demo:'Demo veri', convert:'Dönüştür ve önizle',
     result:'Sonuç', pay:'Öde ve dosyaları indir', download:'İndir (USD + GLB)', hint:'Önizleme burada görünecek',
     src_upload:'Dosya yükle (GeoJSON)', src_geojson_url:'GeoJSON URL', src_arcgis:'ArcGIS REST katmanı', src_wfs:'GeoServer / WFS',
     lname:'Katman adı', url:'URL', typename:'typeName', where:'Filtre (where)', width:'Çizgi genişliği (m)', height:'Yükseklik (m)',
     hfield:'Yükseklik alanı', zoff:'Z ofseti (m)', color:'Renk', working:'İşleniyor…', failed:'Hata: ', features:'nesne', tris:'üçgen',
     truncated:'Önizleme örneklenmiştir; teslimat tüm veriyi içerir.', paidnote:'Ödeme alındı.', mock:'(Geliştirme modu: gerçek ödeme yok)' },
   en: { tagline:'Turn GIS data into 3D OpenUSD', project:'Project', name:'Name', crs:'Target CRS', autoutm:'Auto UTM',
-    tile:'Tile size (m)', base:'Base elevation (m)', layers:'Layers', addlayer:'+ Layer', demo:'Demo data', convert:'Convert & preview',
+    anchor:'Reference point X / Y (target CRS, optional)', srccrs:'Source CRS (optional, e.g. EPSG:3857)', tile:'Tile size (m)', base:'Base elevation (m)', layers:'Layers', addlayer:'+ Layer', demo:'Demo data', convert:'Convert & preview',
     result:'Result', pay:'Pay & download files', download:'Download (USD + GLB)', hint:'Preview will appear here',
     src_upload:'Upload file (GeoJSON)', src_geojson_url:'GeoJSON URL', src_arcgis:'ArcGIS REST layer', src_wfs:'GeoServer / WFS',
     lname:'Layer name', url:'URL', typename:'typeName', where:'Filter (where)', width:'Line width (m)', height:'Height (m)',
@@ -44,6 +44,7 @@ function addLayer(pre = {}) {
     <div class="urlbox" hidden>${lab('url', '<input class="url" placeholder="https://…">')}
       <div class="wfs" hidden>${lab('typename', '<input class="tn">')}</div>
       <div class="ags" hidden>${lab('where', '<input class="where" value="1=1">')}</div></div>
+    ${lab('srccrs', '<input class="sc" placeholder="EPSG:xxxx">')}
     <div class="g">${lab('width', '<input class="w" type="number" value="6" step="0.5">')}
       ${lab('height', '<input class="h" type="number" value="0">')}
       ${lab('hfield', '<input class="hf">')}${lab('zoff', '<input class="zo" type="number" value="0.1" step="0.05">')}
@@ -77,6 +78,7 @@ function collect() {
     const q = (s) => d.querySelector(s);
     const L = { name: q('.name').value.trim() || 'layer' + i, line_width_m: +q('.w').value || 6, height_m: +q('.h').value || 0,
       z_offset_m: +q('.zo').value || 0, color: q('.col').value };
+    if (q('.sc').value.trim()) L.source_crs = q('.sc').value.trim().toUpperCase();
     if (q('.hf').value.trim()) L.height_field = q('.hf').value.trim();
     if (d.dataset.demo) { L.source = 'demo'; L.url = d.dataset.demo; if (L.url === 'trees') { L.point_size_m = 6; L.point_height_m = 9; } return L; }
     L.source = q('.src').value;
@@ -94,6 +96,7 @@ function collect() {
   });
   const spec = { name: $('#pname').value, crs_target: $('#crs').value, tile_size_m: +$('#tile').value || 1000,
     base_elevation_m: +$('#base').value || 0, layers };
+  if ($('#ax').value !== '' && $('#ay').value !== '') { spec.anchor_x = +$('#ax').value; spec.anchor_y = +$('#ay').value; }
   up.append('spec', JSON.stringify(spec));
   return up;
 }
