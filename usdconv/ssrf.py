@@ -1,6 +1,7 @@
 """SSRF-safe outbound HTTP. All user-supplied URLs MUST go through safe_get()."""
 import ipaddress
 import socket
+import ssl
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -45,8 +46,11 @@ def resolve_safe(url: str, allow_private: bool = False, ports=(80, 443)):
 
 def safe_get(url: str, *, timeout: float = 30, max_bytes: int = 50 * 1024 * 1024,
              max_redirects: int = 3, allow_private: bool = False, params: dict | None = None,
-             headers: dict | None = None, data: dict | None = None) -> bytes:
+             headers: dict | None = None, data: dict | None = None,
+             verify: bool | str = True) -> bytes:
     """GET with DNS pinning, manual redirect re-validation, size and time limits."""
+    if isinstance(verify, str):
+        verify = ssl.create_default_context(cafile=verify)
     if params:
         sep = "&" if urlparse(url).query else "?"
         url = url + sep + httpx.QueryParams(params).__str__()
@@ -60,7 +64,8 @@ def safe_get(url: str, *, timeout: float = 30, max_bytes: int = 50 * 1024 * 1024
         if hop == 0 and headers:  # credentials are never forwarded to a redirect target
             hdrs.update(headers)
         ext = {"sni_hostname": u.hostname} if u.scheme == "https" else {}
-        with httpx.Client(timeout=timeout, follow_redirects=False, trust_env=False) as c:
+        try:
+          with httpx.Client(timeout=timeout, follow_redirects=False, trust_env=False, verify=verify) as c:
             with c.stream("POST" if (data and hop == 0) else "GET", pinned, headers=hdrs, extensions=ext,
                           data=data if hop == 0 else None) as r:
                 if r.status_code in (301, 302, 303, 307, 308):
@@ -77,4 +82,13 @@ def safe_get(url: str, *, timeout: float = 30, max_bytes: int = 50 * 1024 * 1024
                     if len(buf) > max_bytes:
                         raise UnsafeURL("response too large")
                 return bytes(buf)
+        except httpx.TimeoutException as e:
+            raise UnsafeURL(f"the server did not answer in {int(timeout)} s (timeout)") from e
+        except httpx.ConnectError as e:
+            msg = str(e)
+            if "CERTIFICATE" in msg.upper() or "SSL" in msg.upper():
+                raise UnsafeURL("TLS certificate could not be verified (self-signed / corporate CA?)") from e
+            raise UnsafeURL("could not connect to the server") from e
+        except httpx.HTTPError as e:
+            raise UnsafeURL(f"network error: {type(e).__name__}") from e
     raise UnsafeURL("too many redirects")

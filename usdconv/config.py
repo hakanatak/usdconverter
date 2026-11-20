@@ -24,6 +24,7 @@ class Settings:
     workers: int = field(default_factory=lambda: _i("USDC_WORKERS", 2))
     admin_emails: str = field(default_factory=lambda: os.environ.get("USDC_ADMIN_EMAILS", ""))
     session_days: int = field(default_factory=lambda: _i("USDC_SESSION_DAYS", 14))
+    ca_bundle: str = field(default_factory=lambda: os.environ.get("USDC_CA_BUNDLE", ""))  # extra/corporate CA file (PEM)
     # Tests only: allow fetching from loopback/private hosts. NEVER enable in production.
     allow_private_hosts: bool = field(default_factory=lambda: os.environ.get("USDC_ALLOW_PRIVATE_HOSTS") == "1")
 

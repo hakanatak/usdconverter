@@ -40,7 +40,8 @@ def load_layer(layer: LayerSpec, uploads: dict[str, bytes], cfg: Settings) -> di
             hdrs["Authorization"] = "Bearer " + layer.token
     fetch = lambda url, params=None, data=None, headers=None: ssrf.safe_get(  # noqa: E731
         url, params=params, data=data, headers={**hdrs, **(headers or {})}, timeout=cfg.fetch_timeout_s,
-        max_bytes=cfg.max_upload_mb * 1024 * 1024, allow_private=cfg.allow_private_hosts)
+        max_bytes=cfg.max_upload_mb * 1024 * 1024, allow_private=cfg.allow_private_hosts,
+        verify=cfg.ca_bundle or True)
     try:
         if layer.source == "upload":
             if layer.file not in uploads:

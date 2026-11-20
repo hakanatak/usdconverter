@@ -4,7 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 /* ---------- i18n ---------- */
 const T = {
-  tr: { st1: 'Veri', st2: 'Ayarlar', st3: 'Önizleme', s1_title: 'Verinizi ekleyin', s2_title: 'Neredeyse hazır', s2_sub: 'Ayarları veriden otomatik doldurduk. İsterseniz değiştirin, değilse doğrudan önizleyin.',
+  tr: { timeout: 'Sunucu yanıt vermedi (zaman aşımı). Tekrar deneyin.', st1: 'Veri', st2: 'Ayarlar', st3: 'Önizleme', s1_title: 'Verinizi ekleyin', s2_title: 'Neredeyse hazır', s2_sub: 'Ayarları veriden otomatik doldurduk. İsterseniz değiştirin, değilse doğrudan önizleyin.',
     or: 'ya da', alt_service: 'Servisten ekle', alt_service_sub: 'ArcGIS Server · GeoServer/WFS · GeoJSON URL', alt_demo: 'Demo veriyle dene', alt_demo_sub: 'Yol, bina ve ağaç içeren örnek bölge',
     next: 'Devam →', back: '← Geri', advanced: 'Gelişmiş ayarlar', tweak: '← Ayarları değiştir', again: 'Yeni dönüşüm', reading: 'Okunuyor…',
     needs_crs: 'Koordinat sistemi dosyada yok. Hangisi?', apply: 'Uygula', other: 'Diğer…', n_feat: 'nesne',
@@ -28,7 +28,7 @@ const T = {
     mock: 'Geliştirme modu: gerçek ödeme alınmaz.', login_req: 'Bu servis giriş istiyor; yukarıdan bilgileri girip "Bağlan"a basın.',
     j_name: 'Ad', j_status: 'Durum', j_price: 'Tutar', j_date: 'Tarih', j_paid: 'Ödendi', open: 'Aç', no_jobs: 'Henüz iş yok.', confirm_del: 'Servis silinsin mi?',
     need_layer: 'En az bir katman ekleyin.', geom: 'geometri', count: 'kayıt', fields: 'alan', line: 'çizgi', polygon: 'alan', point: 'nokta' },
-  en: { st1: 'Data', st2: 'Settings', st3: 'Preview', s1_title: 'Add your data', s2_title: 'Almost ready', s2_sub: 'We filled in the settings from your data. Change them if you like, or go straight to the preview.',
+  en: { timeout: 'The server did not respond (timeout). Try again.', st1: 'Data', st2: 'Settings', st3: 'Preview', s1_title: 'Add your data', s2_title: 'Almost ready', s2_sub: 'We filled in the settings from your data. Change them if you like, or go straight to the preview.',
     or: 'or', alt_service: 'Add from a service', alt_service_sub: 'ArcGIS Server · GeoServer/WFS · GeoJSON URL', alt_demo: 'Try with demo data', alt_demo_sub: 'Sample area with roads, buildings and trees',
     next: 'Continue →', back: '← Back', advanced: 'Advanced settings', tweak: '← Change settings', again: 'New conversion', reading: 'Reading…',
     needs_crs: 'The file has no coordinate system. Which one?', apply: 'Apply', other: 'Other…', n_feat: 'features',
@@ -74,7 +74,9 @@ $('#lang').onclick = () => { lang = lang === 'tr' ? 'en' : 'tr'; localStorage.la
 /* ---------- api ---------- */
 const api = (u, o = {}) => fetch(u, { credentials: 'same-origin', ...o, headers: { 'X-CSRF': '1', ...(o.headers || {}) } })
   .then((r) => { if (r.status === 401 && !u.startsWith('/api/auth/')) showAuth(); return r; });
-const jpost = (u, body, method = 'POST') => api(u, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+const jpost = (u, body, method = 'POST') => api(u, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(90000) });
+// like r.json() but never throws: unreadable / empty bodies become {error: ...}
+const readJson = async (r) => { try { return await r.json(); } catch { return { error: `HTTP ${r.status}` }; } };
 const errText = (b) => (typeof b.error === 'string' ? b.error : JSON.stringify(b.error));
 
 /* ---------- routing ---------- */
@@ -411,7 +413,8 @@ async function openCatalog(c) {
 }
 async function loadCatalog() {
   $('#catstatus').textContent = t('loading'); $('#catlist').innerHTML = '';
-  const r = await jpost(`/api/connections/${cur.id}/catalog`, credsBody(cur.id)); const b = await r.json();
+  let r, b;
+  try { r = await jpost(`/api/connections/${cur.id}/catalog`, credsBody(cur.id)); b = await readJson(r); } catch (e) { r = { ok: false }; b = { error: t('timeout') }; }
   if (!r.ok) {
     $('#catstatus').textContent = errText(b); $('#catstatus').className = 'warn';
     if (/login|token|401|403/i.test(errText(b))) { $('#credbox').open = true; $('#catstatus').textContent += '\n' + t('login_req'); }
@@ -435,7 +438,8 @@ function renderCatalog() {
     const row = el('div', { className: 'crow' }, el('div', { className: 'nm' }, el('b', {}, l.name), meta),
       el('button', { className: 'ghost sm', on: { click: async (e) => {
         e.target.disabled = true; meta.textContent = t('loading');
-        const r = await jpost(`/api/connections/${cur.id}/info`, { ref: l.ref, ...credsBody(cur.id) }); const b = await r.json();
+        let r, b;
+        try { r = await jpost(`/api/connections/${cur.id}/info`, { ref: l.ref, ...credsBody(cur.id) }); b = await readJson(r); } catch (e) { r = { ok: false }; b = { error: t('timeout') }; }
         meta.textContent = r.ok ? `${t(b.geometry) || '?'} · ${b.count != null ? Number(b.count).toLocaleString() : '?'} ${t('count')} · ${b.fields.length} ${t('fields')}${b.fields.length ? ': ' + b.fields.slice(0, 6).map((f) => f.name).join(', ') : ''}` : errText(b);
         l.info = r.ok ? b : null; e.target.disabled = false;
       } } }, t('info')),
@@ -443,7 +447,8 @@ function renderCatalog() {
         e.target.disabled = true;
         let info = l.info;
         if (!info) {
-          const r = await jpost(`/api/connections/${cur.id}/info`, { ref: l.ref, ...credsBody(cur.id) }); const b = await r.json();
+          let r, b;
+          try { r = await jpost(`/api/connections/${cur.id}/info`, { ref: l.ref, ...credsBody(cur.id) }); b = await readJson(r); } catch (e) { r = { ok: false }; b = { error: t('timeout') }; }
           if (!r.ok) { meta.textContent = errText(b); e.target.disabled = false; return; }
           info = l.info = b;
         }

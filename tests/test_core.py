@@ -534,3 +534,53 @@ def test_static_is_not_cached(tmp_path):
     c = TestClient(create_app(Settings(data_dir=tmp_path)))
     assert c.get("/app.js").headers["cache-control"] == "no-cache"
     assert "wiz" in c.get("/").text and 'id="stepper"' in c.get("/").text   # wizard UI is what gets served
+
+
+# ---- real HTTPS (pinned IP + SNI + CA verification), timeouts, readable errors ----
+def _make_certs(d):
+    import shutil, subprocess
+    if not shutil.which("openssl"):
+        pytest.skip("openssl not available")
+    run = lambda *a: subprocess.run(a, cwd=d, check=True, capture_output=True)  # noqa: E731
+    run("openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-keyout", "ca.key", "-out", "ca.crt", "-days", "2", "-subj", "/CN=test-ca",
+        "-addext", "basicConstraints=critical,CA:TRUE", "-addext", "keyUsage=critical,keyCertSign,cRLSign")
+    run("openssl", "req", "-newkey", "rsa:2048", "-nodes", "-keyout", "srv.key", "-out", "srv.csr", "-subj", "/CN=localhost")
+    (d / "ext.cnf").write_text("subjectAltName=DNS:localhost\nbasicConstraints=CA:FALSE\nkeyUsage=digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth")
+    run("openssl", "x509", "-req", "-in", "srv.csr", "-CA", "ca.crt", "-CAkey", "ca.key", "-CAcreateserial", "-out", "srv.crt", "-days", "2", "-extfile", "ext.cnf")
+
+
+def _https_server(d, delay=0.0):
+    import http.server, ssl, threading, time as _t
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            _t.sleep(delay)
+            b = (b'<WFS_Capabilities><FeatureTypeList><FeatureType><Name>epos:quakes</Name><Title>Earthquakes</Title></FeatureType>'
+                 b'</FeatureTypeList></WFS_Capabilities>')
+            self.send_response(200); self.send_header("Content-Type", "text/xml"); self.end_headers(); self.wfile.write(b)
+        def log_message(self, *a): pass
+    srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER); ctx.load_cert_chain(d / "srv.crt", d / "srv.key")
+    srv.socket = ctx.wrap_socket(srv.socket, server_side=True)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv
+
+
+def test_https_catalog_with_ca_and_errors(tmp_path):
+    _make_certs(tmp_path)
+    srv = _https_server(tmp_path); url = f"https://localhost:{srv.server_port}/geoserver/ows"
+    def run(cfg_kw, u=url):
+        c = mk(Settings(data_dir=tmp_path / cfg_kw.pop("sub"), allow_private_hosts=True, **cfg_kw))
+        cid = c.post("/api/connections", json={"name": "x", "kind": "wfs", "url": u}).json()["id"]
+        return c.post(f"/api/connections/{cid}/catalog", json={})
+    ok = run({"sub": "a", "ca_bundle": str(tmp_path / "ca.crt")})
+    assert ok.status_code == 200 and ok.json()["layers"][0]["name"] == "Earthquakes"       # verified TLS through the pinned IP
+    bad = run({"sub": "b"})                                                                 # CA not trusted -> readable message, not a hang/500
+    assert bad.status_code == 400 and "certificate" in bad.json()["error"].lower()
+    srv.shutdown()
+    slow = _https_server(tmp_path, delay=3)
+    r = run({"sub": "c", "ca_bundle": str(tmp_path / "ca.crt"), "fetch_timeout_s": 1}, f"https://localhost:{slow.server_port}/ows")
+    assert r.status_code == 400 and "timeout" in r.json()["error"].lower()
+    slow.shutdown()
+    r = run({"sub": "d"}, "http://127.0.0.1:1/ows")                                          # connection refused
+    assert r.status_code == 400 and "connect" in r.json()["error"].lower()

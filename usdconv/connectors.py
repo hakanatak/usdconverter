@@ -25,8 +25,9 @@ def _fetcher(cfg: Settings, kind: str, user, pw, token):
 
     def fetch(url, params=None, data=None):
         try:
-            return ssrf.safe_get(url, params=params, data=data, headers=hdrs, timeout=cfg.fetch_timeout_s,
-                                 max_bytes=20 * 1024 * 1024, allow_private=cfg.allow_private_hosts)
+            return ssrf.safe_get(url, params=params, data=data, headers=hdrs, timeout=max(cfg.fetch_timeout_s, 60),
+                                 max_bytes=20 * 1024 * 1024, allow_private=cfg.allow_private_hosts,
+                                 verify=cfg.ca_bundle or True)
         except ssrf.UnsafeURL as e:
             raise SourceError(str(e)) from e
     return fetch

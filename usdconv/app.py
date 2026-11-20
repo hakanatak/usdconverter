@@ -222,6 +222,8 @@ def create_app(cfg: Settings | None = None) -> FastAPI:
             return {"layers": connectors.catalog(cfg, c["kind"], c["url"], us, pw, tk)}
         except (SourceError, ValueError) as e:
             raise HTTPException(400, str(e)) from e
+        except Exception as e:  # never leave the UI waiting on an unreadable 500
+            raise HTTPException(502, f"service error: {type(e).__name__}") from e
 
     @app.post("/api/connections/{cid}/info")
     async def conn_info(cid: str, request: Request):
@@ -231,6 +233,8 @@ def create_app(cfg: Settings | None = None) -> FastAPI:
             return connectors.layer_info(cfg, c["kind"], c["url"], str(body.get("ref", "")), us, pw, tk)
         except (SourceError, ValueError) as e:
             raise HTTPException(400, str(e)) from e
+        except Exception as e:  # never leave the UI waiting on an unreadable 500
+            raise HTTPException(502, f"service error: {type(e).__name__}") from e
 
     @app.get("/api/admin/overview")
     def admin_overview(request: Request):
