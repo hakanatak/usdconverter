@@ -39,6 +39,13 @@ Shapefile/GPKG/KML are not supported yet — convert to GeoJSON first (e.g. `ogr
 
 Users sign up / sign in with e-mail + password (scrypt hashes, server-side sessions in an HttpOnly cookie, CSRF header, 5-failure lockout for 15 min). Every job belongs to its owner; other users get `404`. E-mails listed in `USDC_ADMIN_EMAILS` (comma-separated) become admins and get an **Admin** page (`/admin.html`): active sessions (user, IP, browser, last seen), all users, all jobs. Admins can open any job.
 
+**Forgot a password?** There is no e-mail reset yet. On the machine that holds the database, from the server's folder (or with `--data-dir`):
+
+```bash
+python -m usdconv.admin_cli reset-password you@example.com
+```
+The new password is typed hidden, any lockout is cleared and all sessions of that user are signed out.
+
 ## Protected services (login)
 
 ArcGIS Server/Portal layers: username + password (a token is requested from the server's own token service) **or** a ready token. GeoServer/WFS and GeoJSON URLs: username + password (HTTP Basic) or a Bearer token. Credentials are used only for that job, held in memory, **never stored in the database, returned by the API, or written to logs/exports**, and never forwarded on redirects. Use a read-only service account. Servers on private/corporate networks are blocked by the SSRF guard (see roadmap: on-prem connector agent).

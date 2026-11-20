@@ -508,3 +508,23 @@ def test_height_scale_and_width_field():
     res = engine.build(spec, [(spec.layers[0], {"type": "FeatureCollection", "features": [ln(4), ln(20)]})])
     ys = [m.verts[:, 1].max() - m.verts[:, 1].min() for _, m in res.layers[0].feature_meshes]
     assert ys[1] > 3 * ys[0]
+
+
+def test_reset_password_cli(tmp_path, monkeypatch):
+    from usdconv import admin_cli
+    cfg = Settings(data_dir=tmp_path)
+    c = mk(cfg)                                   # signs up a@example.com (logged in)
+    c2 = TestClient(c.app, headers={"X-CSRF": "1"})
+    for _ in range(5):                            # lock the account
+        c2.post("/api/auth/login", json={"email": "a@example.com", "password": "wrong-wrong-wrong"})
+    assert c2.post("/api/auth/login", json={"email": "a@example.com", "password": "correct-horse-battery"}).status_code == 429
+    pws = iter(["brand-new-password", "brand-new-password"])
+    monkeypatch.setattr("getpass.getpass", lambda *_: next(pws))
+    assert admin_cli.main(["reset-password", "A@example.com", "--data-dir", str(tmp_path)]) == 0
+    assert c.get("/api/auth/me").status_code == 401                      # old session signed out
+    assert c2.post("/api/auth/login", json={"email": "a@example.com", "password": "correct-horse-battery"}).status_code == 401
+    assert c2.post("/api/auth/login", json={"email": "a@example.com", "password": "brand-new-password"}).status_code == 200
+    monkeypatch.setattr("getpass.getpass", lambda *_: "short")
+    assert admin_cli.main(["reset-password", "a@example.com", "--data-dir", str(tmp_path)]) == 1
+    assert admin_cli.main(["reset-password", "nobody@example.com", "--data-dir", str(tmp_path)]) == 1
+    assert admin_cli.main(["reset-password", "a@example.com", "--data-dir", str(tmp_path / "nope")]) == 2

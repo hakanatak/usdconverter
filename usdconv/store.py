@@ -105,6 +105,10 @@ class Store:
                 "SELECT u.email,s.created,s.last_seen,s.expires,s.ip,s.ua FROM sessions s JOIN users u ON u.id=s.user_id "
                 "WHERE s.expires>? ORDER BY s.last_seen DESC", (time.time(),))]
 
+    def kill_sessions(self, uid: int):
+        with self._lock, self._c() as c:
+            c.execute("DELETE FROM sessions WHERE user_id=?", (uid,))
+
     def purge_sessions(self):
         with self._lock, self._c() as c:
             c.execute("DELETE FROM sessions WHERE expires<?", (time.time(),))
