@@ -23,6 +23,10 @@ pytest -q
 ```
 Docker: `docker compose up --build`.
 
+## Accounts and admin
+
+Users sign up / sign in with e-mail + password (scrypt hashes, server-side sessions in an HttpOnly cookie, CSRF header, 5-failure lockout for 15 min). Every job belongs to its owner; other users get `404`. E-mails listed in `USDC_ADMIN_EMAILS` (comma-separated) become admins and get an **Admin** page (`/admin.html`): active sessions (user, IP, browser, last seen), all users, all jobs. Admins can open any job.
+
 ## Protected services (login)
 
 ArcGIS Server/Portal layers: username + password (a token is requested from the server's own token service) **or** a ready token. GeoServer/WFS and GeoJSON URLs: username + password (HTTP Basic) or a Bearer token. Credentials are used only for that job, held in memory, **never stored in the database, returned by the API, or written to logs/exports**, and never forwarded on redirects. Use a read-only service account. Servers on private/corporate networks are blocked by the SSRF guard (see roadmap: on-prem connector agent).
@@ -33,6 +37,8 @@ ArcGIS Server/Portal layers: username + password (a token is requested from the 
 |---|---|---|
 | `STRIPE_SECRET_KEY` | – | Enables real payments. Unset = **dev mock mode** (a "pay" button that does not charge; endpoint disabled once a key is set) |
 | `STRIPE_WEBHOOK_SECRET` | – | Verifies `POST /api/stripe/webhook` (`checkout.session.completed`) |
+| `USDC_ADMIN_EMAILS` | – | Comma-separated admin e-mails (they must sign up with that address) |
+| `USDC_SESSION_DAYS` | 14 | Login session lifetime |
 | `USDC_BASE_URL` | `http://localhost:8000` | Used for Stripe success/cancel URLs |
 | `USDC_DATA_DIR` | `data` | SQLite + job files |
 | `USDC_MIN_PRICE_CENTS` / `USDC_PRICE_PER_1K_CENTS` | 900 / 100 | Pricing: min + per 1000 features |
@@ -49,4 +55,4 @@ Stripe setup: create a webhook endpoint `https://<host>/api/stripe/webhook` for 
 
 ## Limits / roadmap
 
-MVP: single process, SQLite, local disk, GeoJSON uploads. Next: GPKG/Shapefile/FGB uploads, DEM terrain (GeoTIFF) & vertical datum, S3 storage + queue workers, Postgres, accounts/orgs, tile fan-out for very large layers, 3D Tiles preview, on-prem connector agent.
+MVP: single process, SQLite, local disk, GeoJSON uploads. Next: GPKG/Shapefile/FGB uploads, DEM terrain (GeoTIFF) & vertical datum, S3 storage + queue workers, Postgres, organisations/teams, password reset & e-mail verification, tile fan-out for very large layers, 3D Tiles preview, on-prem connector agent.

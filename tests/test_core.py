@@ -145,10 +145,17 @@ def test_usd_loads_with_pxr_if_available(tmp_path):
 
 
 # ---- API e2e ----
+def mk(cfg, email="a@example.com"):
+    c = TestClient(create_app(cfg), headers={"X-CSRF": "1"})
+    r = c.post("/api/auth/signup", json={"email": email, "password": "correct-horse-battery"})
+    assert r.status_code == 200, r.text
+    return c
+
+
 @pytest.fixture
 def client(tmp_path):
     cfg = Settings(data_dir=tmp_path, preview_max_features=20)
-    return TestClient(create_app(cfg))
+    return mk(cfg)
 
 
 def wait_ready(c, jid):
@@ -210,7 +217,7 @@ def test_ssrf_via_api_fails_job(client):
 def test_webhook_signature(tmp_path):
     import hashlib, hmac
     cfg = Settings(data_dir=tmp_path, stripe_webhook_secret="whsec_x")
-    c = TestClient(create_app(cfg))
+    c = mk(cfg)
     jid = c.post("/api/jobs", data={"spec": json.dumps(demo_spec().model_dump())}).json()["id"]
     wait_ready(c, jid)
     body = json.dumps({"type": "checkout.session.completed", "data": {"object": {
@@ -224,7 +231,7 @@ def test_webhook_signature(tmp_path):
 
 
 def test_mock_pay_disabled_with_stripe(tmp_path):
-    c = TestClient(create_app(Settings(data_dir=tmp_path, stripe_secret_key="sk_test_x")))
+    c = mk(Settings(data_dir=tmp_path, stripe_secret_key="sk_test_x"))
     jid = c.post("/api/jobs", data={"spec": json.dumps(demo_spec().model_dump())}).json()["id"]
     wait_ready(c, jid)
     assert c.post(f"/api/jobs/{jid}/mock-pay").status_code == 404
@@ -288,7 +295,8 @@ def _auth_server():
 
 
 def _run(tmp_path, layer):
-    c = TestClient(create_app(Settings(data_dir=tmp_path, allow_private_hosts=True)))
+    import uuid
+    c = mk(Settings(data_dir=tmp_path, allow_private_hosts=True), f"{uuid.uuid4().hex[:8]}@example.com")
     r = c.post("/api/jobs", data={"spec": json.dumps({"layers": [layer]})})
     return c, wait_ready(c, r.json()["id"])
 
@@ -316,7 +324,68 @@ def test_arcgis_login_wfs_basic_and_no_secret_leak(tmp_path):
 
 
 def test_validation_error_does_not_echo_password(tmp_path):
-    c = TestClient(create_app(Settings(data_dir=tmp_path)))
+    c = mk(Settings(data_dir=tmp_path))
     bad = {"layers": [{"name": "a", "source": "arcgis", "url": "http://x", "password": "TOPSECRET", "color": "red"}]}
     r = c.post("/api/jobs", data={"spec": json.dumps(bad)})
     assert r.status_code == 422 and "TOPSECRET" not in r.text
+
+
+
+# ---- accounts, sessions, ownership ----
+def test_login_required_and_csrf(tmp_path):
+    cfg = Settings(data_dir=tmp_path)
+    anon = TestClient(create_app(cfg), headers={"X-CSRF": "1"})
+    assert anon.post("/api/jobs", data={"spec": "{}"}).status_code == 401
+    assert anon.get("/api/auth/me").status_code == 401
+    nocsrf = TestClient(create_app(cfg))
+    assert nocsrf.post("/api/auth/signup", json={"email": "x@example.com", "password": "correct-horse-battery"}).status_code == 403
+
+
+def test_signup_validation_and_login_flow(tmp_path):
+    cfg = Settings(data_dir=tmp_path)
+    c = TestClient(create_app(cfg), headers={"X-CSRF": "1"})
+    assert c.post("/api/auth/signup", json={"email": "bad", "password": "correct-horse-battery"}).status_code == 422
+    assert c.post("/api/auth/signup", json={"email": "a@example.com", "password": "short"}).status_code == 422
+    assert c.post("/api/auth/signup", json={"email": "a@example.com", "password": "correct-horse-battery"}).status_code == 200
+    assert c.post("/api/auth/signup", json={"email": "A@example.com", "password": "correct-horse-battery"}).status_code == 409
+    assert c.get("/api/auth/me").json() == {"email": "a@example.com", "is_admin": False}
+    c.post("/api/auth/logout")
+    assert c.get("/api/auth/me").status_code == 401
+    assert c.post("/api/auth/login", json={"email": "a@example.com", "password": "correct-horse-battery"}).status_code == 200
+    import sqlite3
+    row = sqlite3.connect(tmp_path / "db.sqlite").execute("SELECT pw_hash FROM users").fetchone()[0]
+    assert row.startswith("scrypt$") and "correct-horse" not in row
+
+
+def test_lockout_after_5_failures(tmp_path):
+    c = mk(Settings(data_dir=tmp_path))
+    c.post("/api/auth/logout")
+    for _ in range(5):
+        assert c.post("/api/auth/login", json={"email": "a@example.com", "password": "nope-nope-nope"}).status_code == 401
+    r = c.post("/api/auth/login", json={"email": "a@example.com", "password": "correct-horse-battery"})
+    assert r.status_code == 429  # even the right password is refused while locked
+
+
+def test_tenant_isolation_and_admin(tmp_path):
+    cfg = Settings(data_dir=tmp_path, admin_emails="boss@example.com")
+    app = create_app(cfg)
+    def client(email):
+        c = TestClient(app, headers={"X-CSRF": "1"})
+        assert c.post("/api/auth/signup", json={"email": email, "password": "correct-horse-battery"}).status_code == 200
+        return c
+    a, b, boss = client("a@example.com"), client("b@example.com"), client("boss@example.com")
+    jid = a.post("/api/jobs", data={"spec": json.dumps(demo_spec().model_dump())}).json()["id"]
+    wait_ready(a, jid)
+    a.post(f"/api/jobs/{jid}/mock-pay")
+    for path in ("", "/preview.glb", "/download"):          # B cannot touch A's job in any way
+        assert b.get(f"/api/jobs/{jid}{path}").status_code == 404
+    assert b.post(f"/api/jobs/{jid}/mock-pay").status_code == 404
+    assert b.get("/api/my/jobs").json() == []
+    assert len(a.get("/api/my/jobs").json()) == 1
+    assert a.get("/api/admin/overview").status_code == 403 and b.get("/api/admin/overview").status_code == 403
+    ov = boss.get("/api/admin/overview").json()             # admin sees users, live sessions and jobs
+    assert {u["email"] for u in ov["users"]} == {"a@example.com", "b@example.com", "boss@example.com"}
+    assert {s["email"] for s in ov["sessions"]} >= {"a@example.com", "b@example.com"}
+    assert ov["jobs"][0]["email"] == "a@example.com"
+    assert "pw_hash" not in json.dumps(ov) and "token" not in json.dumps(ov["sessions"])
+    assert boss.get(f"/api/jobs/{jid}/download").status_code == 200   # admin can open any job

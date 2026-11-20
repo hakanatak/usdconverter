@@ -14,10 +14,24 @@
 <header>
   <b>USD Converter</b><span class="tag" data-i18n="tagline"></span>
   <span class="sp"></span>
+  <span id="who" hidden><span id="email"></span> <a id="adminlink" href="/admin.html" hidden class="btn ghost">Admin</a>
+    <button id="logout" class="ghost" data-i18n="logout"></button></span>
   <button id="lang" class="ghost">EN</button>
 </header>
+<div id="auth" hidden>
+  <form id="authform">
+    <h2>USD Converter</h2>
+    <label><span data-i18n="email"></span><input id="aemail" type="email" required autocomplete="username"></label>
+    <label><span data-i18n="password"></span><input id="apass" type="password" required minlength="10" autocomplete="current-password"></label>
+    <button class="primary" id="signin" type="submit" data-i18n="login"></button>
+    <button class="ghost" id="signup" type="button" data-i18n="signup" style="width:100%;margin-top:6px"></button>
+    <div id="amsg"></div>
+  </form>
+</div>
 <main>
   <aside id="panel">
+    <h3 data-i18n="myjobs"></h3>
+    <div id="myjobs"></div>
     <h3 data-i18n="project"></h3>
     <label><span data-i18n="name"></span><input id="pname" value="My project"></label>
     <label><span data-i18n="crs"></span>

@@ -5,14 +5,14 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const T = {
   tr: { tagline:'CBS verisini 3B OpenUSD\'ye dönüştür', project:'Proje', name:'Ad', crs:'Hedef koordinat sistemi', autoutm:'Otomatik UTM',
     anchor:'Referans noktası X / Y (hedef CRS, opsiyonel)', srccrs:'Kaynak CRS (opsiyonel, örn. EPSG:3857)', user:'Kullanıcı adı (opsiyonel)', pass:'Parola (opsiyonel)', tokenl:'Token (opsiyonel)', tile:'Karo boyutu (m)', base:'Taban kotu (m)', layers:'Katmanlar', addlayer:'+ Katman', demo:'Demo veri', convert:'Dönüştür ve önizle',
-    result:'Sonuç', pay:'Öde ve dosyaları indir', download:'İndir (USD + GLB)', hint:'Önizleme burada görünecek',
+    result:'Sonuç', pay:'Öde ve dosyaları indir', download:'İndir (USD + GLB)', hint:'Önizleme burada görünecek', email:'E-posta', password:'Parola (en az 10 karakter)', login:'Giriş yap', signup:'Hesap oluştur', logout:'Çıkış', myjobs:'Önceki işlerim', nojobs:'Henüz iş yok',
     src_upload:'Dosya yükle (GeoJSON)', src_geojson_url:'GeoJSON URL', src_arcgis:'ArcGIS REST katmanı', src_wfs:'GeoServer / WFS',
     lname:'Katman adı', url:'URL', typename:'typeName', where:'Filtre (where)', width:'Çizgi genişliği (m)', height:'Yükseklik (m)',
     hfield:'Yükseklik alanı', zoff:'Z ofseti (m)', color:'Renk', working:'İşleniyor…', failed:'Hata: ', features:'nesne', tris:'üçgen',
     truncated:'Önizleme örneklenmiştir; teslimat tüm veriyi içerir.', paidnote:'Ödeme alındı.', mock:'(Geliştirme modu: gerçek ödeme yok)' },
   en: { tagline:'Turn GIS data into 3D OpenUSD', project:'Project', name:'Name', crs:'Target CRS', autoutm:'Auto UTM',
     anchor:'Reference point X / Y (target CRS, optional)', srccrs:'Source CRS (optional, e.g. EPSG:3857)', user:'Username (optional)', pass:'Password (optional)', tokenl:'Token (optional)', tile:'Tile size (m)', base:'Base elevation (m)', layers:'Layers', addlayer:'+ Layer', demo:'Demo data', convert:'Convert & preview',
-    result:'Result', pay:'Pay & download files', download:'Download (USD + GLB)', hint:'Preview will appear here',
+    result:'Result', pay:'Pay & download files', download:'Download (USD + GLB)', hint:'Preview will appear here', email:'E-mail', password:'Password (min. 10 characters)', login:'Sign in', signup:'Create account', logout:'Sign out', myjobs:'My previous jobs', nojobs:'No jobs yet',
     src_upload:'Upload file (GeoJSON)', src_geojson_url:'GeoJSON URL', src_arcgis:'ArcGIS REST layer', src_wfs:'GeoServer / WFS',
     lname:'Layer name', url:'URL', typename:'typeName', where:'Filter (where)', width:'Line width (m)', height:'Height (m)',
     hfield:'Height field', zoff:'Z offset (m)', color:'Color', working:'Processing…', failed:'Error: ', features:'features', tris:'triangles',
@@ -20,6 +20,8 @@ const T = {
 };
 let lang = localStorage.lang || (navigator.language.startsWith('tr') ? 'tr' : 'en');
 const $ = (s) => document.querySelector(s);
+const api = (u, o = {}) => fetch(u, { credentials: 'same-origin', ...o, headers: { 'X-CSRF': '1', ...(o.headers || {}) } })
+  .then((r) => { if (r.status === 401) showAuth(); return r; });
 const t = (k) => T[lang][k] || k;
 function i18n() {
   document.documentElement.lang = lang;
@@ -144,7 +146,7 @@ let job = null;
 const msg = (s) => ($('#msg').textContent = s);
 async function poll(id) {
   for (;;) {
-    const j = await (await fetch(`/api/jobs/${id}`)).json();
+    const j = await (await api(`/api/jobs/${id}`)).json();
     if (j.status === 'ready') return j;
     if (j.status === 'failed') throw new Error(j.error);
     await new Promise((r) => setTimeout(r, 800));
@@ -167,7 +169,7 @@ async function start() {
   $('#go').disabled = true; $('#result').hidden = true;
   try {
     msg(t('working'));
-    const r = await fetch('/api/jobs', { method: 'POST', body: collect() });
+    const r = await api('/api/jobs', { method: 'POST', body: collect() });
     const body = await r.json();
     if (!r.ok) throw new Error(JSON.stringify(body.error));
     history.replaceState(null, '', `?job=${body.id}`);
@@ -178,10 +180,10 @@ async function start() {
 }
 $('#go').onclick = start;
 $('#pay').onclick = async () => {
-  const r = await (await fetch(`/api/jobs/${job.id}/checkout`, { method: 'POST' })).json();
+  const r = await (await api(`/api/jobs/${job.id}/checkout`, { method: 'POST' })).json();
   if (r.url) { location.href = r.url; return; }
-  if (r.mock) await fetch(`/api/jobs/${job.id}/mock-pay`, { method: 'POST' });
-  render(await (await fetch(`/api/jobs/${job.id}`)).json());
+  if (r.mock) await api(`/api/jobs/${job.id}/mock-pay`, { method: 'POST' });
+  render(await (await api(`/api/jobs/${job.id}`)).json());
   msg(t('paidnote'));
 };
 
@@ -189,8 +191,40 @@ $('#pay').onclick = async () => {
 const qid = new URLSearchParams(location.search).get('job');
 $('#demo').click();
 if (qid) {
-  fetch(`/api/jobs/${qid}/verify-payment`, { method: 'POST' }).then((r) => r.json()).then(async (j) => {
+  api(`/api/jobs/${qid}/verify-payment`, { method: 'POST' }).then((r) => r.json()).then(async (j) => {
     if (j.status === 'ready') { showGLB(`/api/jobs/${qid}/preview.glb`); render(j); }
   }).catch(() => {});
 }
+// ---- accounts ----
+function showAuth() { $('#auth').hidden = false; $('#who').hidden = true; }
+async function authCall(kind) {
+  const r = await fetch(`/api/auth/${kind}`, { method: 'POST', credentials: 'same-origin',
+    headers: { 'X-CSRF': '1', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: $('#aemail').value, password: $('#apass').value }) });
+  const b = await r.json();
+  if (!r.ok) { $('#amsg').textContent = typeof b.error === 'string' ? b.error : JSON.stringify(b.error); return; }
+  $('#apass').value = ''; $('#amsg').textContent = ''; onUser(b);
+}
+$('#authform').onsubmit = (e) => { e.preventDefault(); authCall('login'); };
+$('#signup').onclick = () => authCall('signup');
+$('#logout').onclick = async () => { await api('/api/auth/logout', { method: 'POST' }); location.href = '/'; };
+function onUser(u) {
+  $('#auth').hidden = true; $('#who').hidden = false; $('#email').textContent = u.email;
+  $('#adminlink').hidden = !u.is_admin; loadJobs();
+}
+async function loadJobs() {
+  const r = await api('/api/my/jobs'); if (!r.ok) return;
+  const list = await r.json(); const box = $('#myjobs'); box.innerHTML = '';
+  if (!list.length) box.textContent = t('nojobs');
+  list.slice(0, 8).forEach((j) => {
+    const a = document.createElement('a');
+    a.textContent = `${j.name} · ${new Date(j.created * 1000).toLocaleString()} · ${j.paid ? '✓' : '$' + (j.price_cents / 100).toFixed(2)}`;
+    a.onclick = () => { location.href = `/?job=${j.id}`; };
+    box.append(a);
+  });
+}
+(async () => {
+  const r = await fetch('/api/auth/me', { credentials: 'same-origin' });
+  if (r.ok) onUser(await r.json()); else showAuth();
+})();
 i18n();

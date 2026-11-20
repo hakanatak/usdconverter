@@ -22,9 +22,19 @@ class Settings:
     retention_hours: int = field(default_factory=lambda: _i("USDC_RETENTION_HOURS", 72))
     fetch_timeout_s: int = field(default_factory=lambda: _i("USDC_FETCH_TIMEOUT_S", 30))
     workers: int = field(default_factory=lambda: _i("USDC_WORKERS", 2))
+    admin_emails: str = field(default_factory=lambda: os.environ.get("USDC_ADMIN_EMAILS", ""))
+    session_days: int = field(default_factory=lambda: _i("USDC_SESSION_DAYS", 14))
     # Tests only: allow fetching from loopback/private hosts. NEVER enable in production.
     allow_private_hosts: bool = field(default_factory=lambda: os.environ.get("USDC_ALLOW_PRIVATE_HOSTS") == "1")
 
     @property
     def payment_mode(self) -> str:
         return "stripe" if self.stripe_secret_key else "mock"
+
+    @property
+    def admins(self) -> set[str]:
+        return {e.strip().lower() for e in self.admin_emails.split(",") if e.strip()}
+
+    @property
+    def secure_cookies(self) -> bool:
+        return self.base_url.startswith("https://")
