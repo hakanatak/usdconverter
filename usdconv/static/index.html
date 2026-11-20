@@ -6,58 +6,125 @@
 <title>USD Converter</title>
 <link rel="stylesheet" href="style.css">
 <script type="importmap">
-{"imports":{"three":"/vendor/three/build/three.module.js",
-"three/addons/":"/vendor/three/examples/jsm/"}}
+{"imports":{"three":"/vendor/three/build/three.module.js","three/addons/":"/vendor/three/examples/jsm/"}}
 </script>
 </head>
 <body>
 <header>
-  <b>USD Converter</b><span class="tag" data-i18n="tagline"></span>
+  <div class="logo"><span class="dot"></span>USD Converter</div>
+  <nav id="nav">
+    <a href="#/new" data-v="new" data-i18n="nav_new"></a>
+    <a href="#/sources" data-v="sources" data-i18n="nav_sources"></a>
+    <a href="#/jobs" data-v="jobs" data-i18n="nav_jobs"></a>
+  </nav>
   <span class="sp"></span>
-  <span id="who" hidden><span id="email"></span> <a id="adminlink" href="/admin.html" hidden class="btn ghost">Admin</a>
-    <button id="logout" class="ghost" data-i18n="logout"></button></span>
-  <button id="lang" class="ghost">EN</button>
+  <span id="who" hidden><span id="email" class="muted"></span>
+    <a id="adminlink" href="/admin.html" hidden class="btn ghost sm">Admin</a>
+    <button id="logout" class="ghost sm" data-i18n="logout"></button></span>
+  <button id="lang" class="ghost sm">EN</button>
 </header>
-<div id="auth" hidden>
-  <form id="authform">
-    <h2>USD Converter</h2>
+
+<!-- login -->
+<div id="auth" class="overlay" hidden>
+  <form id="authform" class="card pad">
+    <h2>USD Converter</h2><p class="muted" data-i18n="tagline"></p>
     <label><span data-i18n="email"></span><input id="aemail" type="email" required autocomplete="username"></label>
     <label><span data-i18n="password"></span><input id="apass" type="password" required minlength="10" autocomplete="current-password"></label>
-    <button class="primary" id="signin" type="submit" data-i18n="login"></button>
+    <button class="primary" type="submit" data-i18n="login"></button>
     <button class="ghost" id="signup" type="button" data-i18n="signup" style="width:100%;margin-top:6px"></button>
-    <div id="amsg"></div>
+    <div id="amsg" class="warn"></div>
   </form>
 </div>
-<main>
-  <aside id="panel">
-    <h3 data-i18n="myjobs"></h3>
-    <div id="myjobs"></div>
-    <h3 data-i18n="project"></h3>
-    <label><span data-i18n="name"></span><input id="pname" value="My project"></label>
-    <label><span data-i18n="crs"></span>
-      <select id="crs"><option value="auto_utm" data-i18n="autoutm"></option><option value="EPSG:3857">EPSG:3857</option><option value="EPSG:5254">EPSG:5254</option></select></label>
-    <label><span data-i18n="anchor"></span>
-      <div class="row"><input id="ax" type="number" placeholder="X"><input id="ay" type="number" placeholder="Y"></div></label>
-    <label><span data-i18n="tile"></span><input id="tile" type="number" value="1000" min="50"></label>
-    <label><span data-i18n="base"></span><input id="base" type="number" value="0"></label>
-    <h3 data-i18n="layers"></h3>
-    <div id="layers"></div>
-    <div class="row">
-      <button id="add" class="ghost" data-i18n="addlayer"></button>
-      <button id="demo" class="ghost" data-i18n="demo"></button>
+
+<!-- workspace -->
+<main id="v-new" class="view">
+  <aside class="side">
+    <div class="sec">
+      <h3 data-i18n="project"></h3>
+      <label><span data-i18n="name"></span><input id="pname" value="My project"></label>
+      <div class="g2">
+        <label><span data-i18n="crs"></span><select id="crs"><option value="auto_utm" data-i18n="autoutm"></option><option value="EPSG:3857">EPSG:3857</option><option value="EPSG:5254">EPSG:5254</option><option value="EPSG:32635">EPSG:32635</option></select></label>
+        <label><span data-i18n="tile"></span><input id="tile" type="number" value="1000" min="50"></label>
+        <label><span data-i18n="base"></span><input id="base" type="number" value="0"></label>
+        <label><span data-i18n="anchor"></span><div class="g2"><input id="ax" type="number" placeholder="X"><input id="ay" type="number" placeholder="Y"></div></label>
+      </div>
     </div>
-    <button id="go" class="primary" data-i18n="convert"></button>
-    <div id="msg"></div>
-    <div id="result" hidden>
-      <h3 data-i18n="result"></h3>
-      <div id="stats"></div>
-      <div id="price"></div>
-      <button id="pay" class="primary" data-i18n="pay"></button>
-      <a id="dl" class="primary btn" hidden data-i18n="download"></a>
+    <div class="sec grow">
+      <div class="rowh"><h3 data-i18n="layers"></h3><span id="lcount" class="muted"></span></div>
+      <div class="addrow">
+        <button id="addsrc" class="primary sm" data-i18n="from_source"></button>
+        <button id="addfile" class="ghost sm" data-i18n="from_file"></button>
+        <button id="demo" class="ghost sm" data-i18n="demo"></button>
+        <input id="fileinput" type="file" accept=".geojson,.json" multiple hidden>
+      </div>
+      <div id="layers"></div>
+    </div>
+    <div class="sec">
+      <button id="go" class="primary big" data-i18n="convert"></button>
+      <div id="msg" class="warn"></div>
     </div>
   </aside>
   <section id="view"><div id="wm" hidden>PREVIEW · usd-converter</div><div id="hint" data-i18n="hint"></div></section>
+  <aside class="side right" id="result" hidden>
+    <div class="sec">
+      <h3 data-i18n="result"></h3>
+      <div id="stats"></div>
+      <div id="price"></div>
+      <button id="pay" class="primary big" data-i18n="pay"></button>
+      <a id="dl" class="btn primary big" hidden data-i18n="download"></a>
+      <p class="muted small" id="paynote"></p>
+    </div>
+  </aside>
 </main>
+
+<!-- sources -->
+<main id="v-sources" class="view page" hidden>
+  <div class="rowh"><h2 data-i18n="nav_sources"></h2><button id="newsvc" class="primary" data-i18n="add_service"></button></div>
+  <p class="muted" data-i18n="sources_help"></p>
+  <div id="conns" class="cards"></div>
+</main>
+
+<!-- jobs -->
+<main id="v-jobs" class="view page" hidden>
+  <h2 data-i18n="nav_jobs"></h2>
+  <table id="jobtable"></table>
+</main>
+
+<!-- add service modal -->
+<div id="m-svc" class="overlay" hidden>
+  <form id="svcform" class="card pad wide">
+    <h2 data-i18n="add_service"></h2>
+    <div class="types" id="svctypes">
+      <label class="type"><input type="radio" name="kind" value="arcgis" checked><b>ArcGIS Server</b><small>REST / FeatureServer</small></label>
+      <label class="type"><input type="radio" name="kind" value="wfs"><b>GeoServer / WFS</b><small>OGC WFS</small></label>
+      <label class="type"><input type="radio" name="kind" value="geojson_url"><b>GeoJSON URL</b><small data-i18n="t_geojson"></small></label>
+    </div>
+    <label><span data-i18n="svc_name"></span><input id="svcname" required maxlength="80"></label>
+    <label><span>URL</span><input id="svcurl" required placeholder="https://…"></label>
+    <p class="muted small" id="svchint"></p>
+    <p class="note" data-i18n="no_store"></p>
+    <div class="rowh"><button type="button" class="ghost" data-close data-i18n="cancel"></button><button class="primary" data-i18n="save"></button></div>
+    <div id="svcmsg" class="warn"></div>
+  </form>
+</div>
+
+<!-- catalog modal -->
+<div id="m-cat" class="overlay" hidden>
+  <div class="card pad wide tall">
+    <div class="rowh"><h2 id="cattitle"></h2><button class="ghost sm" data-close>✕</button></div>
+    <details id="credbox"><summary data-i18n="login_needed"></summary>
+      <div class="g3"><label><span data-i18n="user"></span><input id="cuser" autocomplete="off"></label>
+        <label><span data-i18n="pass"></span><input id="cpass" type="password" autocomplete="new-password"></label>
+        <label><span data-i18n="tokenl"></span><input id="ctoken" autocomplete="off"></label></div>
+      <p class="note" data-i18n="no_store_session"></p>
+      <button id="cconnect" class="primary sm" data-i18n="connect"></button>
+    </details>
+    <input id="catq" placeholder="🔍" data-i18n-ph="search">
+    <div id="catstatus" class="muted"></div>
+    <div id="catlist"></div>
+  </div>
+</div>
+
 <script type="module" src="app.js"></script>
 </body>
 </html>

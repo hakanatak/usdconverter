@@ -389,3 +389,77 @@ def test_tenant_isolation_and_admin(tmp_path):
     assert ov["jobs"][0]["email"] == "a@example.com"
     assert "pw_hash" not in json.dumps(ov) and "token" not in json.dumps(ov["sessions"])
     assert boss.get(f"/api/jobs/{jid}/download").status_code == 200   # admin can open any job
+
+
+# ---- saved services / catalog ----
+def _svc_server():
+    import http.server, threading, urllib.parse
+    gj = json.dumps(sources.demo_data("roads")).encode()
+    me = {}
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def _send(self, obj, ctype="application/json"):
+            b = obj if isinstance(obj, bytes) else json.dumps(obj).encode()
+            self.send_response(200); self.send_header("Content-Type", ctype); self.end_headers(); self.wfile.write(b)
+        def do_GET(self):
+            u = urllib.parse.urlparse(self.path); q = urllib.parse.parse_qs(u.query)
+            P = u.path
+            if P == "/arcgis/rest/services":
+                return self._send({"folders": ["Open", "Secret"], "services": [{"name": "Root", "type": "FeatureServer"}]})
+            if P == "/arcgis/rest/services/Open":
+                return self._send({"services": [{"name": "Open/Roads", "type": "FeatureServer"}, {"name": "Open/Img", "type": "ImageServer"}]})
+            if P == "/arcgis/rest/services/Secret":
+                return self._send({"error": {"code": 403, "message": "forbidden"}})
+            if P.endswith("/FeatureServer"):
+                return self._send({"layers": [{"id": 0, "name": "Streets"}, {"id": 3, "name": "Parcels"}]})
+            if P.endswith("/FeatureServer/0/query"):
+                return self._send({"count": 1234})
+            if P.endswith("/FeatureServer/0"):
+                return self._send({"name": "Streets", "geometryType": "esriGeometryPolyline",
+                                   "fields": [{"name": "OBJECTID", "type": "esriFieldTypeOID"}, {"name": "NAME", "type": "esriFieldTypeString"}]})
+            if q.get("request") == ["GetCapabilities"]:
+                return self._send(b'<WFS_Capabilities><FeatureTypeList><FeatureType><Name>ws:roads</Name><Title>Road centrelines</Title></FeatureType>'
+                                  b'<FeatureType><Name>ws:poi</Name><Title></Title></FeatureType></FeatureTypeList></WFS_Capabilities>', "text/xml")
+            if q.get("resultType") == ["hits"]:
+                return self._send(b'<wfs:FeatureCollection numberMatched="77" numberReturned="0"/>', "text/xml")
+            if q.get("request") == ["GetFeature"]:
+                return self._send(gj)
+            self._send(gj)
+        def log_message(self, *a): pass
+    srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv
+
+
+def test_connections_catalog_info(tmp_path):
+    srv = _svc_server(); base = f"http://127.0.0.1:{srv.server_port}"
+    app = create_app(Settings(data_dir=tmp_path, allow_private_hosts=True))
+    def cl(email):
+        c = TestClient(app, headers={"X-CSRF": "1"})
+        c.post("/api/auth/signup", json={"email": email, "password": "correct-horse-battery"}); return c
+    a, b = cl("a@example.com"), cl("b@example.com")
+    ags = a.post("/api/connections", json={"name": "City GIS", "kind": "arcgis", "url": f"{base}/arcgis/rest/services"}).json()
+    r = a.post(f"/api/connections/{ags['id']}/catalog", json={}).json()["layers"]
+    names = {(l["group"], l["name"]) for l in r}
+    assert ("Open/Roads", "Streets") in names and ("Root", "Parcels") in names       # folder + root services, Secret skipped, ImageServer ignored
+    assert not any(l["group"] == "Open/Img" for l in r)
+    info = a.post(f"/api/connections/{ags['id']}/info", json={"ref": f"{base}/arcgis/rest/services/Open/Roads/FeatureServer/0"}).json()
+    assert info["count"] == 1234 and info["geometry"] == "line" and info["fields"][1]["name"] == "NAME"
+    w = a.post("/api/connections", json={"name": "GeoServer", "kind": "wfs", "url": f"{base}/geoserver/ows"}).json()
+    lay = a.post(f"/api/connections/{w['id']}/catalog", json={}).json()["layers"]
+    assert [l["ref"] for l in lay] == ["ws:roads", "ws:poi"] and lay[0]["name"] == "Road centrelines" and lay[1]["name"] == "ws:poi"
+    wi = a.post(f"/api/connections/{w['id']}/info", json={"ref": "ws:roads"}).json()
+    assert wi["count"] == 77 and wi["geometry"] == "line"
+    # ownership; credentials never persisted; bad input
+    assert b.get("/api/connections").json() == []
+    assert b.post(f"/api/connections/{ags['id']}/catalog", json={}).status_code == 404
+    a.post(f"/api/connections/{ags['id']}/catalog", json={"username": "u", "password": "SECRET-PW"})
+    import sqlite3
+    dump = str(sqlite3.connect(tmp_path / "db.sqlite").execute("SELECT * FROM connections").fetchall())
+    assert "SECRET-PW" not in dump
+    assert a.post("/api/connections", json={"name": "x", "kind": "ftp", "url": "http://x.com"}).status_code == 422
+    bad = TestClient(create_app(Settings(data_dir=tmp_path / "x")), headers={"X-CSRF": "1"})
+    bad.post("/api/auth/signup", json={"email": "c@example.com", "password": "correct-horse-battery"})
+    assert bad.post("/api/connections", json={"name": "x", "kind": "arcgis", "url": "http://169.254.169.254/"}).status_code == 422
+    assert a.delete(f"/api/connections/{w['id']}").status_code == 200 and len(a.get("/api/connections").json()) == 1
+    srv.shutdown()

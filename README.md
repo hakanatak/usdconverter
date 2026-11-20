@@ -23,6 +23,10 @@ pytest -q
 ```
 Docker: `docker compose up --build`.
 
+## Sources (services) and catalog
+
+**Sources** page → *Add service*: ArcGIS Server (services directory, a `FeatureServer`/`MapServer`, or a single layer URL), GeoServer/WFS (`GetCapabilities`) or a GeoJSON URL. Only the URL is saved. Open the **Catalog** to search layers, press **Info** (geometry type, record count, fields) and **+ Add** to put a layer into the conversion. Services that need a login ask for username/password/token when you connect; these are kept in the browser tab's memory only and sent per request — the server never stores them. Unreadable ArcGIS folders are skipped instead of breaking the catalog.
+
 ## Accounts and admin
 
 Users sign up / sign in with e-mail + password (scrypt hashes, server-side sessions in an HttpOnly cookie, CSRF header, 5-failure lockout for 15 min). Every job belongs to its owner; other users get `404`. E-mails listed in `USDC_ADMIN_EMAILS` (comma-separated) become admins and get an **Admin** page (`/admin.html`): active sessions (user, IP, browser, last seen), all users, all jobs. Admins can open any job.

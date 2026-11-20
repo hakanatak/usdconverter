@@ -9,7 +9,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
-from . import auth, jobs, payments
+from . import auth, connectors, jobs, payments, ssrf
+from .sources import SourceError
 from .config import Settings
 from .spec import JobSpec
 from .store import Store
@@ -118,6 +119,54 @@ def create_app(cfg: Settings | None = None) -> FastAPI:
     @app.get("/api/my/jobs")
     def my_jobs(request: Request):
         return store.list_jobs(current_user(request)["id"])
+
+    # ---- saved services (URL only; credentials are asked per use and never stored)
+    @app.get("/api/connections")
+    def list_connections(request: Request):
+        return store.list_conns(current_user(request)["id"])
+
+    @app.post("/api/connections")
+    async def add_connection(request: Request):
+        u = current_user(request)
+        b = await request.json()
+        kind, url, name = str(b.get("kind", "")), str(b.get("url", "")).strip(), str(b.get("name", "")).strip()[:80]
+        if kind not in ("arcgis", "wfs", "geojson_url") or not name:
+            raise HTTPException(422, "name and a valid type are required")
+        try:
+            ssrf.resolve_safe(url, cfg.allow_private_hosts)
+        except ssrf.UnsafeURL as e:
+            raise HTTPException(422, str(e)) from e
+        cid = secrets.token_urlsafe(9)
+        store.add_conn(cid, u["id"], name, kind, url)
+        return {"id": cid, "name": name, "kind": kind, "url": url}
+
+    @app.delete("/api/connections/{cid}")
+    def del_connection(cid: str, request: Request):
+        store.delete_conn(cid, current_user(request)["id"])
+        return {"ok": True}
+
+    def conn_and_creds(cid: str, request: Request, body: dict):
+        c = store.get_conn(cid, current_user(request)["id"])
+        if not c:
+            raise HTTPException(404, "connection not found")
+        return c, (body.get("username") or None, body.get("password") or None, body.get("token") or None)
+
+    @app.post("/api/connections/{cid}/catalog")
+    async def conn_catalog(cid: str, request: Request):
+        c, (us, pw, tk) = conn_and_creds(cid, request, await request.json())
+        try:
+            return {"layers": connectors.catalog(cfg, c["kind"], c["url"], us, pw, tk)}
+        except (SourceError, ValueError) as e:
+            raise HTTPException(400, str(e)) from e
+
+    @app.post("/api/connections/{cid}/info")
+    async def conn_info(cid: str, request: Request):
+        body = await request.json()
+        c, (us, pw, tk) = conn_and_creds(cid, request, body)
+        try:
+            return connectors.layer_info(cfg, c["kind"], c["url"], str(body.get("ref", "")), us, pw, tk)
+        except (SourceError, ValueError) as e:
+            raise HTTPException(400, str(e)) from e
 
     @app.get("/api/admin/overview")
     def admin_overview(request: Request):

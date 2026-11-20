@@ -17,6 +17,10 @@ SESSIONS = """CREATE TABLE IF NOT EXISTS sessions(
  token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL, created REAL, last_seen REAL, expires REAL, ip TEXT, ua TEXT)"""
 
 
+CONNS = """CREATE TABLE IF NOT EXISTS connections(
+ id TEXT PRIMARY KEY, user_id INTEGER NOT NULL, name TEXT, kind TEXT, url TEXT, created REAL)"""
+
+
 class Store:
     def __init__(self, path: Path):
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -26,6 +30,7 @@ class Store:
             c.execute(SCHEMA)
             c.execute(USERS)
             c.execute(SESSIONS)
+            c.execute(CONNS)
             cols = [r["name"] for r in c.execute("PRAGMA table_info(jobs)")]
             if "user_id" not in cols:
                 c.execute("ALTER TABLE jobs ADD COLUMN user_id INTEGER")
@@ -130,3 +135,21 @@ class Store:
     def delete(self, job_id: str):
         with self._lock, self._c() as c:
             c.execute("DELETE FROM jobs WHERE id=?", (job_id,))
+
+    # ---- connections (URL only; secrets are never stored)
+    def add_conn(self, cid: str, uid: int, name: str, kind: str, url: str):
+        with self._lock, self._c() as c:
+            c.execute("INSERT INTO connections VALUES(?,?,?,?,?,?)", (cid, uid, name, kind, url, time.time()))
+
+    def list_conns(self, uid: int):
+        with self._c() as c:
+            return [dict(r) for r in c.execute("SELECT id,name,kind,url,created FROM connections WHERE user_id=? ORDER BY created DESC", (uid,))]
+
+    def get_conn(self, cid: str, uid: int):
+        with self._c() as c:
+            r = c.execute("SELECT * FROM connections WHERE id=? AND user_id=?", (cid, uid)).fetchone()
+        return dict(r) if r else None
+
+    def delete_conn(self, cid: str, uid: int):
+        with self._lock, self._c() as c:
+            c.execute("DELETE FROM connections WHERE id=? AND user_id=?", (cid, uid))
