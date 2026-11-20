@@ -23,6 +23,10 @@ pytest -q
 ```
 Docker: `docker compose up --build`.
 
+## Adding data
+
+Drag & drop GeoJSON files anywhere on the **Convert** page (or click the drop zone / *Upload file*). Each file becomes a layer. Services: see below. Shapefile/GPKG/KML are not supported yet — convert to GeoJSON first (e.g. `ogr2ogr -f GeoJSON out.geojson in.shp`).
+
 ## Sources (services) and catalog
 
 **Sources** page → *Add service*: ArcGIS Server (services directory, a `FeatureServer`/`MapServer`, or a single layer URL), GeoServer/WFS (`GetCapabilities`) or a GeoJSON URL. Only the URL is saved. Open the **Catalog** to search layers, press **Info** (geometry type, record count, fields) and **+ Add** to put a layer into the conversion. Services that need a login ask for username/password/token when you connect; these are kept in the browser tab's memory only and sent per request — the server never stores them. Unreadable ArcGIS folders are skipped instead of breaking the catalog.

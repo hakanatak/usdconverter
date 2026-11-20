@@ -7,7 +7,7 @@ const T = {
   tr: { tagline: 'CBS verisini 3B OpenUSD\'ye dönüştür', nav_new: 'Dönüşüm', nav_sources: 'Kaynaklar', nav_jobs: 'İşlerim',
     email: 'E-posta', password: 'Parola (en az 10 karakter)', login: 'Giriş yap', signup: 'Hesap oluştur', logout: 'Çıkış',
     project: 'Proje', name: 'Ad', crs: 'Hedef CRS', autoutm: 'Otomatik UTM', tile: 'Karo (m)', base: 'Taban kotu (m)',
-    anchor: 'Referans noktası X / Y (opsiyonel)', layers: 'Katmanlar', from_source: '+ Kaynaktan ekle', from_file: 'Dosya yükle', demo: 'Demo',
+    anchor: 'Referans noktası X / Y (opsiyonel)', layers: 'Katmanlar', from_source: '+ Kaynaktan ekle', from_file: 'Dosya yükle', drop_title: 'Dosyaları buraya sürükleyin', drop_sub: 'veya tıklayıp seçin · .geojson / .json · en fazla 50 MB', drop_release: 'Bırakın: katman olarak eklensin', bad_file: 'Desteklenmeyen dosya (şimdilik yalnızca GeoJSON): ', too_big: 'Dosya çok büyük: ', demo: 'Demo',
     convert: 'Dönüştür ve önizle', result: 'Sonuç', pay: 'Öde ve dosyaları indir', download: 'İndir (USD + GLB)',
     hint: 'Katman ekleyip "Dönüştür"e basın; önizleme burada görünecek', add_service: '+ Servis ekle', svc_name: 'Servis adı',
     sources_help: 'ArcGIS Server, GeoServer/WFS veya GeoJSON adreslerinizi kaydedin; katalogdan katman seçip dönüşüme ekleyin.',
@@ -25,7 +25,7 @@ const T = {
   en: { tagline: 'Turn GIS data into 3D OpenUSD', nav_new: 'Convert', nav_sources: 'Sources', nav_jobs: 'My jobs',
     email: 'E-mail', password: 'Password (min. 10 characters)', login: 'Sign in', signup: 'Create account', logout: 'Sign out',
     project: 'Project', name: 'Name', crs: 'Target CRS', autoutm: 'Auto UTM', tile: 'Tile (m)', base: 'Base elevation (m)',
-    anchor: 'Reference point X / Y (optional)', layers: 'Layers', from_source: '+ From source', from_file: 'Upload file', demo: 'Demo',
+    anchor: 'Reference point X / Y (optional)', layers: 'Layers', from_source: '+ From source', from_file: 'Upload file', drop_title: 'Drop files here', drop_sub: 'or click to choose · .geojson / .json · max 50 MB', drop_release: 'Release to add as layers', bad_file: 'Unsupported file (GeoJSON only for now): ', too_big: 'File too large: ', demo: 'Demo',
     convert: 'Convert & preview', result: 'Result', pay: 'Pay & download files', download: 'Download (USD + GLB)',
     hint: 'Add layers and press "Convert"; the preview appears here', add_service: '+ Add service', svc_name: 'Service name',
     sources_help: 'Save your ArcGIS Server, GeoServer/WFS or GeoJSON endpoints, then pick layers from the catalog.',
@@ -140,11 +140,30 @@ $('#demo').onclick = () => {
   addLayer({ name: 'buildings', source: 'demo', url: 'buildings', geometry: 'polygon', hf: 'height', zo: 0, col: '#d4c4a8' });
   addLayer({ name: 'trees', source: 'demo', url: 'trees', geometry: 'point', ps: 6, zo: 0, col: '#3fa34d' });
 };
+function addFiles(files) {
+  const bad = [];
+  [...files].forEach((f) => {
+    if (!/\.(geojson|json)$/i.test(f.name)) { bad.push(t('bad_file') + f.name); return; }
+    if (f.size > 50 * 1024 * 1024) { bad.push(t('too_big') + f.name); return; }
+    addLayer({ name: f.name.replace(/\.[^.]+$/, '').replace(/[^\w\-]+/g, '_').slice(0, 40) || 'layer', source: 'upload', file: f.name, fileObj: f });
+  });
+  msg(bad.join('\n'));
+}
 $('#addfile').onclick = () => $('#fileinput').click();
-$('#fileinput').onchange = (e) => {
-  [...e.target.files].forEach((f) => addLayer({ name: f.name.replace(/\.[^.]+$/, '').slice(0, 40) || 'layer', source: 'upload', file: f.name, fileObj: f }));
-  e.target.value = '';
-};
+$('#drop').onclick = () => $('#fileinput').click();
+$('#drop').onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') $('#fileinput').click(); };
+$('#fileinput').onchange = (e) => { addFiles(e.target.files); e.target.value = ''; };
+// drag & drop anywhere on the workspace
+let dragDepth = 0;
+const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
+addEventListener('dragenter', (e) => { if (hasFiles(e) && view === 'new') { dragDepth++; $('#dragveil').hidden = false; } });
+addEventListener('dragleave', (e) => { if (hasFiles(e) && --dragDepth <= 0) { dragDepth = 0; $('#dragveil').hidden = true; } });
+addEventListener('dragover', (e) => { if (hasFiles(e)) e.preventDefault(); });
+addEventListener('drop', (e) => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); dragDepth = 0; $('#dragveil').hidden = true;
+  if (view === 'new') addFiles(e.dataTransfer.files);
+});
 
 /* ---------- collect + job flow ---------- */
 const creds = {}; // connId -> {username,password,token}; memory only, never persisted
