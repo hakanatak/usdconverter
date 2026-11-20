@@ -5,7 +5,7 @@ import re
 from types import SimpleNamespace
 from urllib.parse import urlparse
 
-from . import ssrf
+from . import ssrf, suggest
 from .config import Settings
 from .sources import SourceError, _arcgis_token, _parse_arcgis
 
@@ -134,9 +134,11 @@ def layer_info(cfg: Settings, kind: str, url: str, ref: str, user=None, pw=None,
         j = _ags(cfg, ref, user, pw, token)
         meta = j(ref)
         cnt = j(ref + "/query", where="1=1", returnCountOnly="true").get("count")
-        return {"geometry": GEOM.get(meta.get("geometryType"), meta.get("geometryType")), "count": cnt,
-                "fields": [{"name": f["name"], "type": f.get("type", "").replace("esriFieldType", "")}
-                           for f in meta.get("fields", [])][:80]}
+        geom = GEOM.get(meta.get("geometryType"), meta.get("geometryType"))
+        flds = [{"name": f["name"], "type": f.get("type", "").replace("esriFieldType", ""),
+                 "numeric": f.get("type", "") in ("esriFieldTypeInteger", "esriFieldTypeSmallInteger", "esriFieldTypeDouble",
+                                                  "esriFieldTypeSingle")} for f in meta.get("fields", [])][:80]
+        return {"geometry": geom, "count": cnt, "fields": flds, "suggest": suggest.suggest(meta.get("name", ""), geom, flds)}
     fetch = _fetcher(cfg, kind, user, pw, token)
     if kind == "wfs":
         base = url.split("?")[0]
@@ -159,5 +161,6 @@ def layer_info(cfg: Settings, kind: str, url: str, ref: str, user=None, pw=None,
     f0 = feats[0] if feats else {}
     gt = ((f0.get("geometry") or {}).get("type") or "").lower()
     geom = "point" if "point" in gt else "line" if "line" in gt else "polygon" if "polygon" in gt else None
-    return {"geometry": geom, "count": count,
-            "fields": [{"name": k, "type": type(v).__name__} for k, v in (f0.get("properties") or {}).items()][:80]}
+    flds = [{"name": k, "type": type(v).__name__, "numeric": isinstance(v, (int, float)) and not isinstance(v, bool)}
+            for k, v in (f0.get("properties") or {}).items()][:80]
+    return {"geometry": geom, "count": count, "fields": flds, "suggest": suggest.suggest(ref, geom, flds)}

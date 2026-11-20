@@ -91,20 +91,20 @@ def polygon_mesh(poly, z: float, height: float):
     return vs, fs
 
 
-def geometry_mesh(geom, layer: LayerSpec, z: float, height: float):
+def geometry_mesh(geom, layer: LayerSpec, z: float, height: float, width: float | None = None):
     """Return (verts list, faces list) for any shapely geometry in local coordinates."""
     vs, fs = [], []
     for part in shapely.get_parts(geom):
         gt = part.geom_type
         if gt == "GeometryCollection":
-            v, f = geometry_mesh(part, layer, z, height)
+            v, f = geometry_mesh(part, layer, z, height, width)
             fs += [(a + len(vs), b + len(vs), c + len(vs)) for a, b, c in f]
             vs += v
             continue
         polys = []
         h = height
         if gt in ("LineString", "LinearRing"):
-            polys = [part.buffer(layer.line_width_m / 2, cap_style="flat", join_style="round", quad_segs=2)]
+            polys = [part.buffer((width or layer.line_width_m) / 2, cap_style="flat", join_style="round", quad_segs=2)]
         elif gt == "Point":
             s = layer.point_size_m / 2
             polys = [shapely.box(part.x - s, part.y - s, part.x + s, part.y + s)]
@@ -125,7 +125,7 @@ def geometry_mesh(geom, layer: LayerSpec, z: float, height: float):
 
 # ---------- build ----------
 
-def _num(props: dict, key: str | None, default: float) -> float:
+def _num(props: dict, key: str | None, default):
     if not key:
         return default
     try:
@@ -199,8 +199,10 @@ def build(spec: JobSpec, loaded: list[tuple[LayerSpec, dict]], max_features: int
         verts_total = tris_total = built = 0
         for geom, pr in zip(proj, props):
             z = _num(pr, layer.z_field, spec.base_elevation_m) + layer.z_offset_m
-            h = _num(pr, layer.height_field, layer.height_m)
-            vs, fs = geometry_mesh(geom, layer, z, max(h, 0.0))
+            hv = _num(pr, layer.height_field, None)
+            h = hv * layer.height_scale if hv is not None else layer.height_m
+            wv = _num(pr, layer.width_field, None)
+            vs, fs = geometry_mesh(geom, layer, z, max(h, 0.0), wv if wv and wv > 0 else None)
             if not fs:
                 skipped += 1
                 continue

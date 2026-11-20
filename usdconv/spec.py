@@ -19,6 +19,8 @@ class LayerSpec(BaseModel):
     line_width_m: float = Field(6.0, gt=0, le=500)
     height_m: float = Field(0.0, ge=0, le=2000)
     height_field: Optional[str] = None
+    height_scale: float = Field(1.0, gt=0, le=1000)   # e.g. 3.0 when height_field holds storeys
+    width_field: Optional[str] = None
     z_field: Optional[str] = None
     z_offset_m: float = Field(0.1, ge=-1000, le=1000)
     point_size_m: float = Field(1.5, gt=0, le=200)

@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 
-from . import auth, connectors, jobs, payments, ssrf
+from . import auth, connectors, crs as crsmod, jobs, payments, ssrf, suggest as suggestmod
 from .sources import SourceError
 from .config import Settings
 from .spec import JobSpec
@@ -119,6 +119,63 @@ def create_app(cfg: Settings | None = None) -> FastAPI:
     @app.get("/api/my/jobs")
     def my_jobs(request: Request):
         return store.list_jobs(current_user(request)["id"])
+
+    @app.post("/api/inspect")
+    async def inspect(request: Request, file: UploadFile = File(...), source_crs: str = Form("")):
+        """Read an uploaded file and report what was detected + smart defaults (nothing is stored)."""
+        current_user(request)
+        data = await file.read(cfg.max_upload_mb * 1024 * 1024 + 1)
+        if len(data) > cfg.max_upload_mb * 1024 * 1024:
+            raise HTTPException(413, "upload too large")
+        import numpy as np
+        import shapely
+        from pyproj import Transformer
+        from shapely.geometry import shape
+        from . import sources
+        try:
+            fc = sources._parse(data)
+        except SourceError as e:
+            raise HTTPException(400, str(e)) from e
+        feats = fc.get("features", [])
+        if not feats:
+            raise HTTPException(400, "no features in file")
+        if source_crs and not __import__("re").fullmatch(r"EPSG:\d{4,6}", source_crs):
+            raise HTTPException(422, "source_crs must look like EPSG:3857")
+        try:
+            src = crsmod.detect_source_crs(fc, source_crs or None)
+        except crsmod.CRSError as e:
+            return {"needs_crs": True, "message": str(e), "count": len(feats)}
+        kinds, geoms = {}, []
+        for f in feats[:5000]:
+            try:
+                g = shape(f["geometry"]) if f.get("geometry") else None
+            except Exception:
+                continue
+            if g is None or g.is_empty:
+                continue
+            geoms.append(g)
+            k = "point" if "Point" in g.geom_type else "line" if "Line" in g.geom_type else "polygon" if "Polygon" in g.geom_type else None
+            if k:
+                kinds[k] = kinds.get(k, 0) + 1
+        if not geoms:
+            raise HTTPException(400, "no usable geometries")
+        geometry = max(kinds, key=kinds.get) if kinds else None
+        minx, miny, maxx, maxy = shapely.total_bounds(np.array(geoms, dtype=object))
+        bb = Transformer.from_crs(src, 4326, always_xy=True).transform_bounds(minx, miny, maxx, maxy)
+        stats: dict = {}
+        for f in feats[:300]:
+            for k, v in (f.get("properties") or {}).items():
+                st = stats.setdefault(k, {"n": 0, "num": 0, "ex": None})
+                if v is not None:
+                    st["n"] += 1
+                    st["num"] += isinstance(v, (int, float)) and not isinstance(v, bool)
+                    st["ex"] = st["ex"] if st["ex"] is not None else v
+        fields = [{"name": k, "numeric": st["n"] > 0 and st["num"] / st["n"] > 0.9, "example": str(st["ex"])[:40]}
+                  for k, st in list(stats.items())[:80]]
+        stem = file.filename.rsplit(".", 1)[0] if file.filename else ""
+        return {"needs_crs": False, "count": len(feats), "geometry": geometry, "mixed": len(kinds) > 1, "fields": fields,
+                "crs": src.to_string(), "bbox4326": list(bb), "suggested_tile_m": suggestmod.nice_tile(suggestmod.extent_m(bb)),
+                "suggest": suggestmod.suggest(stem, geometry, fields)}
 
     # ---- saved services (URL only; credentials are asked per use and never stored)
     @app.get("/api/connections")

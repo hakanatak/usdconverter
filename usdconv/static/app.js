@@ -4,10 +4,16 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 /* ---------- i18n ---------- */
 const T = {
-  tr: { tagline: 'CBS verisini 3B OpenUSD\'ye dönüştür', nav_new: 'Dönüşüm', nav_sources: 'Kaynaklar', nav_jobs: 'İşlerim',
+  tr: { st1: 'Veri', st2: 'Ayarlar', st3: 'Önizleme', s1_title: 'Verinizi ekleyin', s2_title: 'Neredeyse hazır', s2_sub: 'Ayarları veriden otomatik doldurduk. İsterseniz değiştirin, değilse doğrudan önizleyin.',
+    or: 'ya da', alt_service: 'Servisten ekle', alt_service_sub: 'ArcGIS Server · GeoServer/WFS · GeoJSON URL', alt_demo: 'Demo veriyle dene', alt_demo_sub: 'Yol, bina ve ağaç içeren örnek bölge',
+    next: 'Devam →', back: '← Geri', advanced: 'Gelişmiş ayarlar', tweak: '← Ayarları değiştir', again: 'Yeni dönüşüm', reading: 'Okunuyor…',
+    needs_crs: 'Koordinat sistemi dosyada yok. Hangisi?', apply: 'Uygula', other: 'Diğer…', n_feat: 'nesne',
+    road_w: 'Yol genişliği', bld_h: 'Bina yüksekliği', from_data: 'veriden', h_field: 'Veriden', h_fixed: 'Sabit', h_flat: 'Düz', hf_field: 'Alan', pt_size: 'Nesne boyutu', pt_h: 'Nesne yüksekliği',
+    w_data: 'Veriden', w_fixed: 'Sabit', floors_note: 'kat sayısı × 3 m', dflt_conn: 'Servisten', zf: 'Kot alanı (Z)', none: '— yok —', mixed: 'Karışık geometri: yalnızca baskın tür kullanılır.',
+    unit_m: 'm', layer_name: 'Katman adı', tagline: 'CBS verisini 3B OpenUSD\'ye dönüştür', nav_new: 'Dönüşüm', nav_sources: 'Kaynaklar', nav_jobs: 'İşlerim',
     email: 'E-posta', password: 'Parola (en az 10 karakter)', login: 'Giriş yap', signup: 'Hesap oluştur', logout: 'Çıkış',
     project: 'Proje', name: 'Ad', crs: 'Hedef CRS', autoutm: 'Otomatik UTM', tile: 'Karo (m)', base: 'Taban kotu (m)',
-    anchor: 'Referans noktası X / Y (opsiyonel)', layers: 'Katmanlar', from_source: '+ Kaynaktan ekle', from_file: 'Dosya yükle', drop_title: 'Dosyaları buraya sürükleyin', drop_sub: 'veya tıklayıp seçin · .geojson / .json · en fazla 50 MB', drop_release: 'Bırakın: katman olarak eklensin', bad_file: 'Desteklenmeyen dosya (şimdilik yalnızca GeoJSON): ', too_big: 'Dosya çok büyük: ', demo: 'Demo',
+    anchor: 'Referans noktası X / Y (opsiyonel)', layers: 'Katmanlar', from_source: '+ Kaynaktan ekle', from_file: 'Dosya yükle', drop_title: 'Dosyalarınızı buraya sürükleyip bırakın', drop_sub: 'ya da tıklayıp seçin · GeoJSON (.geojson / .json) · en fazla 50 MB', drop_release: 'Bırakın: katman olarak eklensin', bad_file: 'Desteklenmeyen dosya (şimdilik yalnızca GeoJSON): ', too_big: 'Dosya çok büyük: ', demo: 'Demo',
     convert: 'Dönüştür ve önizle', result: 'Sonuç', pay: 'Öde ve dosyaları indir', download: 'İndir (USD + GLB)',
     hint: 'Katman ekleyip "Dönüştür"e basın; önizleme burada görünecek', add_service: '+ Servis ekle', svc_name: 'Servis adı',
     sources_help: 'ArcGIS Server, GeoServer/WFS veya GeoJSON adreslerinizi kaydedin; katalogdan katman seçip dönüşüme ekleyin.',
@@ -22,10 +28,16 @@ const T = {
     mock: 'Geliştirme modu: gerçek ödeme alınmaz.', login_req: 'Bu servis giriş istiyor; yukarıdan bilgileri girip "Bağlan"a basın.',
     j_name: 'Ad', j_status: 'Durum', j_price: 'Tutar', j_date: 'Tarih', j_paid: 'Ödendi', open: 'Aç', no_jobs: 'Henüz iş yok.', confirm_del: 'Servis silinsin mi?',
     need_layer: 'En az bir katman ekleyin.', geom: 'geometri', count: 'kayıt', fields: 'alan', line: 'çizgi', polygon: 'alan', point: 'nokta' },
-  en: { tagline: 'Turn GIS data into 3D OpenUSD', nav_new: 'Convert', nav_sources: 'Sources', nav_jobs: 'My jobs',
+  en: { st1: 'Data', st2: 'Settings', st3: 'Preview', s1_title: 'Add your data', s2_title: 'Almost ready', s2_sub: 'We filled in the settings from your data. Change them if you like, or go straight to the preview.',
+    or: 'or', alt_service: 'Add from a service', alt_service_sub: 'ArcGIS Server · GeoServer/WFS · GeoJSON URL', alt_demo: 'Try with demo data', alt_demo_sub: 'Sample area with roads, buildings and trees',
+    next: 'Continue →', back: '← Back', advanced: 'Advanced settings', tweak: '← Change settings', again: 'New conversion', reading: 'Reading…',
+    needs_crs: 'The file has no coordinate system. Which one?', apply: 'Apply', other: 'Other…', n_feat: 'features',
+    road_w: 'Road width', bld_h: 'Building height', from_data: 'from data', h_field: 'From data', h_fixed: 'Fixed', h_flat: 'Flat', hf_field: 'Field', pt_size: 'Object size', pt_h: 'Object height',
+    w_data: 'From data', w_fixed: 'Fixed', floors_note: 'storeys × 3 m', dflt_conn: 'From service', zf: 'Elevation field (Z)', none: '— none —', mixed: 'Mixed geometry: only the dominant type is used.',
+    unit_m: 'm', layer_name: 'Layer name', tagline: 'Turn GIS data into 3D OpenUSD', nav_new: 'Convert', nav_sources: 'Sources', nav_jobs: 'My jobs',
     email: 'E-mail', password: 'Password (min. 10 characters)', login: 'Sign in', signup: 'Create account', logout: 'Sign out',
     project: 'Project', name: 'Name', crs: 'Target CRS', autoutm: 'Auto UTM', tile: 'Tile (m)', base: 'Base elevation (m)',
-    anchor: 'Reference point X / Y (optional)', layers: 'Layers', from_source: '+ From source', from_file: 'Upload file', drop_title: 'Drop files here', drop_sub: 'or click to choose · .geojson / .json · max 50 MB', drop_release: 'Release to add as layers', bad_file: 'Unsupported file (GeoJSON only for now): ', too_big: 'File too large: ', demo: 'Demo',
+    anchor: 'Reference point X / Y (optional)', layers: 'Layers', from_source: '+ From source', from_file: 'Upload file', drop_title: 'Drag & drop your files here', drop_sub: 'or click to choose · GeoJSON (.geojson / .json) · max 50 MB', drop_release: 'Release to add as layers', bad_file: 'Unsupported file (GeoJSON only for now): ', too_big: 'File too large: ', demo: 'Demo',
     convert: 'Convert & preview', result: 'Result', pay: 'Pay & download files', download: 'Download (USD + GLB)',
     hint: 'Add layers and press "Convert"; the preview appears here', add_service: '+ Add service', svc_name: 'Service name',
     sources_help: 'Save your ArcGIS Server, GeoServer/WFS or GeoJSON endpoints, then pick layers from the catalog.',
@@ -55,7 +67,7 @@ function i18n() {
   document.querySelectorAll('[data-i18n]').forEach((e) => (e.textContent = t(e.dataset.i18n)));
   document.querySelectorAll('[data-i18n-ph]').forEach((e) => (e.placeholder = '🔍 ' + t(e.dataset.i18nPh)));
   $('#lang').textContent = lang === 'tr' ? 'EN' : 'TR';
-  renderLayers(); renderConns(); if (view === 'jobs') loadJobs();
+  renderAdded(); renderLayers(); renderConns(); if (view === 'jobs') loadJobs();
 }
 $('#lang').onclick = () => { lang = lang === 'tr' ? 'en' : 'tr'; localStorage.lang = lang; i18n(); };
 
@@ -72,7 +84,7 @@ function route() {
   if (!['new', 'sources', 'jobs'].includes(view)) view = 'new';
   ['new', 'sources', 'jobs'].forEach((v) => ($('#v-' + v).hidden = v !== view));
   document.querySelectorAll('#nav a').forEach((a) => a.classList.toggle('on', a.dataset.v === view));
-  if (view === 'new') resize();
+  if (view === 'new') { resize(); renderAdded(); }
   if (view === 'sources') loadConns();
   if (view === 'jobs') loadJobs();
 }
@@ -95,87 +107,186 @@ function onUser(u) {
   route(); resumeJob();
 }
 
+/* ---------- wizard ---------- */
+let step = 1;
+function goStep(n) {
+  step = n;
+  [1, 2, 3].forEach((i) => ($('#s' + i).hidden = i !== n));
+  document.querySelectorAll('#stepper li').forEach((li) => { const i = +li.dataset.s; li.classList.toggle('on', i === n); li.classList.toggle('done', i < n); });
+  if (n === 2) prepareStep2();
+  if (n === 3) resize();
+}
+document.querySelectorAll('#stepper li').forEach((li) => (li.onclick = () => { const i = +li.dataset.s; if (i < step && !(i === 3)) goStep(i); }));
+$('#next1').onclick = () => goStep(2);
+$('#back2').onclick = () => goStep(1);
+$('#tweak').onclick = () => goStep(2);
+$('#again').onclick = () => { layers.length = 0; renderAdded(); renderLayers(); $('#result').hidden = true; history.replaceState(null, '', '/#/new'); goStep(1); };
+
 /* ---------- layers state ---------- */
-const layers = []; // {name, source, file?, fileObj?, url?, type_name?, connId?, geometry?, w,h,hf,zo,col,sc,where,ps}
-const defaults = { w: 6, h: 0, hf: '', zo: 0.1, col: '#9aa5b1', sc: '', where: '1=1', ps: 1.5 };
-const palette = ['#7b8794', '#d4c4a8', '#3fa34d', '#c98a5b', '#5b9bd5', '#b784d6', '#e0b84c'];
-function addLayer(l) {
-  let n = l.name, i = 2;
-  while (layers.some((x) => x.name === n)) n = `${l.name}_${i++}`;
-  layers.push({ ...defaults, col: palette[layers.length % palette.length], ...l, name: n });
-  renderLayers();
+// layer: {id,name,source,file?,fileObj?,url?,type_name?,connId?, state:'reading'|'ok'|'needs_crs'|'error', info?, msg?, sc?, ...settings}
+let lid = 0;
+const layers = [];
+const unique = (base) => { let n = base, i = 2; while (layers.some((x) => x.name === n)) n = `${base}_${i++}`; return n; };
+function applyInfo(l, info) {
+  const sg = info.suggest || {};
+  l.info = info; l.geometry = info.geometry; l.count = info.count; l.state = 'ok';
+  l.col = sg.color || '#9aa5b1'; l.w = sg.width_m ?? 6; l.zo = l.geometry === 'line' ? 0.15 : 0.05; l.zf = sg.z_field || '';
+  l.wf = sg.width_field || ''; l.wmode = l.wf ? 'field' : 'fixed';
+  l.hf = sg.height_field || ''; l.hscale = sg.height_scale || 1; l.h = sg.height_m || 0;
+  l.hmode = l.hf ? 'field' : (l.h > 0 ? 'fixed' : 'flat'); if (l.h === 0) l.h = 10;
+  l.ps = sg.point_size_m ?? 2; l.ph = sg.point_height_m ?? 6;
+  l.where = '1=1';
 }
-function numField(l, key, label, step = 'any') {
-  return el('label', {}, t(label), el('input', { type: 'number', step, value: l[key], on: { input: (e) => (l[key] = +e.target.value) } }));
+function newLayer(o) { const l = { id: ++lid, state: 'reading', ...o, name: unique(o.name) }; layers.push(l); renderAdded(); return l; }
+const geomLabel = (g) => (g ? t(g) : '?');
+function layerSummary(l) {
+  if (l.state === 'reading') return t('reading');
+  if (l.state === 'error') return l.msg;
+  const bits = [geomLabel(l.geometry), l.count != null ? `${Number(l.count).toLocaleString()} ${t('n_feat')}` : null, l.info?.crs, l.source === 'demo' ? 'demo' : null].filter(Boolean);
+  return bits.join(' · ');
 }
-function txtField(l, key, label, ph = '') {
-  return el('label', {}, t(label), el('input', { value: l[key], placeholder: ph, on: { input: (e) => (l[key] = e.target.value) } }));
-}
-function renderLayers() {
-  const box = $('#layers'); box.innerHTML = '';
-  $('#lcount').textContent = layers.length || '';
-  if (!layers.length) { box.append(el('div', { className: 'empty' }, t('none_layers'))); return; }
+function renderAdded() {
+  const box = $('#added'); box.innerHTML = '';
   layers.forEach((l, idx) => {
-    const geom = l.geometry;
-    const fields = [];
-    if (!geom || geom === 'line') fields.push(numField(l, 'w', 'width', '0.5'));
-    if (!geom || geom !== 'line') fields.push(numField(l, 'h', 'height'), txtField(l, 'hf', 'hfield'));
-    if (geom === 'point') fields.push(numField(l, 'ps', 'psize', '0.5'));
-    fields.push(numField(l, 'zo', 'zoff', '0.05'));
-    if (l.source === 'arcgis') fields.push(txtField(l, 'where', 'where'));
-    fields.push(txtField(l, 'sc', 'srccrs', 'EPSG:3857'));
-    fields.push(el('label', {}, t('color'), el('input', { type: 'color', value: l.col, on: { input: (e) => { l.col = e.target.value; sw.style.background = l.col; } } })));
-    const sw = el('span', { className: 'sw' }); sw.style.background = l.col;
-    const sub = { upload: l.file || 'file', demo: 'demo', arcgis: 'ArcGIS', wfs: 'WFS', geojson_url: 'GeoJSON' }[l.source];
-    box.append(el('div', { className: 'lyr' },
-      el('div', { className: 'top' }, sw,
-        el('div', { className: 'nm' }, el('b', {}, l.name), el('small', {}, sub, geom ? ` · ${t(geom)}` : '', l.count != null ? ` · ${Number(l.count).toLocaleString()}` : '')),
-        el('span', { className: 'x', title: t('delete'), on: { click: () => { layers.splice(idx, 1); renderLayers(); } } }, '✕')),
-      el('details', {}, el('summary', {}, t('params')), el('div', { className: 'g2' }, fields))));
+    const item = el('div', { className: 'item' + (l.state === 'error' || l.state === 'needs_crs' ? ' err' : '') },
+      el('div', { className: 'st' }, l.state === 'reading' ? el('div', { className: 'spin', style: 'margin:0;width:20px;height:20px' }) : l.state === 'ok' ? el('span', { className: 'ok' }, '✓') : '⚠'),
+      el('div', { className: 'nm' }, el('b', {}, l.name), el('small', {}, l.state === 'needs_crs' ? l.msg : layerSummary(l)),
+        l.state === 'needs_crs' ? crsAsk(l) : null),
+      el('span', { className: 'x', title: t('delete'), on: { click: () => { layers.splice(idx, 1); renderAdded(); } } }, '✕'));
+    box.append(item);
   });
+  $('#next1').disabled = !layers.length || layers.some((l) => l.state !== 'ok');
 }
-$('#demo').onclick = () => {
-  layers.length = 0;
-  addLayer({ name: 'roads', source: 'demo', url: 'roads', geometry: 'line', w: 8, col: '#7b8794' });
-  addLayer({ name: 'buildings', source: 'demo', url: 'buildings', geometry: 'polygon', hf: 'height', zo: 0, col: '#d4c4a8' });
-  addLayer({ name: 'trees', source: 'demo', url: 'trees', geometry: 'point', ps: 6, zo: 0, col: '#3fa34d' });
-};
+function crsAsk(l) {
+  const sel = el('select', {}, ['EPSG:3857', 'EPSG:32635', 'EPSG:32636', 'EPSG:5254', 'EPSG:2154', 'EPSG:27700'].map((c) => el('option', { value: c }, c)), el('option', { value: '' }, t('other')));
+  const own = el('input', { placeholder: 'EPSG:xxxx', hidden: true, size: 12 });
+  sel.onchange = () => (own.hidden = sel.value !== '');
+  return el('div', { className: 'crsask' }, sel, own, el('button', { className: 'primary sm', on: { click: () => inspectFile(l, (sel.value || own.value).trim().toUpperCase()) } }, t('apply')));
+}
+async function inspectFile(l, crs = '') {
+  l.state = 'reading'; renderAdded();
+  const fd = new FormData(); fd.append('file', l.fileObj, l.file); fd.append('source_crs', crs);
+  try {
+    const r = await api('/api/inspect', { method: 'POST', body: fd }); const b = await r.json();
+    if (!r.ok) { l.state = 'error'; l.msg = errText(b); }
+    else if (b.needs_crs) { l.state = 'needs_crs'; l.msg = t('needs_crs'); }
+    else { applyInfo(l, b); l.sc = crs; l.mixed = b.mixed; l.tile = b.suggested_tile_m; }
+  } catch (e) { l.state = 'error'; l.msg = e.message; }
+  renderAdded();
+}
 function addFiles(files) {
   const bad = [];
   [...files].forEach((f) => {
     if (!/\.(geojson|json)$/i.test(f.name)) { bad.push(t('bad_file') + f.name); return; }
     if (f.size > 50 * 1024 * 1024) { bad.push(t('too_big') + f.name); return; }
-    addLayer({ name: f.name.replace(/\.[^.]+$/, '').replace(/[^\w\-]+/g, '_').slice(0, 40) || 'layer', source: 'upload', file: f.name, fileObj: f });
+    const l = newLayer({ name: f.name.replace(/\.[^.]+$/, '').replace(/[^\w\-]+/g, '_').slice(0, 40) || 'layer', source: 'upload', file: f.name, fileObj: f });
+    if (layers.length === 1 && $('#pname').value === 'My project') $('#pname').value = l.name;
+    inspectFile(l);
   });
-  msg(bad.join('\n'));
+  $('#msg1').textContent = bad.join('\n');
 }
-$('#addfile').onclick = () => $('#fileinput').click();
+function addServiceLayer(base, info) { const l = newLayer(base); applyInfo(l, info); renderAdded(); }
+$('#demo').onclick = () => {
+  layers.length = 0;
+  const mk = (name, geometry, count, sg) => { const l = newLayer({ name, source: 'demo', url: name }); applyInfo(l, { geometry, count, suggest: sg, crs: 'EPSG:4326' }); l.tile = 250; return l; };
+  mk('roads', 'line', 19, { color: '#7b8794', width_m: 8 });
+  mk('buildings', 'polygon', 64, { color: '#d4c4a8', height_field: 'height' });
+  mk('trees', 'point', 64, { color: '#3fa34d', point_size_m: 6, point_height_m: 9 });
+  $('#pname').value = 'Demo'; renderAdded();
+};
 $('#drop').onclick = () => $('#fileinput').click();
 $('#drop').onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') $('#fileinput').click(); };
 $('#fileinput').onchange = (e) => { addFiles(e.target.files); e.target.value = ''; };
-// drag & drop anywhere on the workspace
 let dragDepth = 0;
 const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
-addEventListener('dragenter', (e) => { if (hasFiles(e) && view === 'new') { dragDepth++; $('#dragveil').hidden = false; } });
-addEventListener('dragleave', (e) => { if (hasFiles(e) && --dragDepth <= 0) { dragDepth = 0; $('#dragveil').hidden = true; } });
+const dropOK = () => view === 'new' && step <= 2;
+addEventListener('dragenter', (e) => { if (hasFiles(e) && dropOK()) { dragDepth++; $('#dragveil').hidden = false; $('#drop').classList.add('over'); } });
+addEventListener('dragleave', (e) => { if (hasFiles(e) && --dragDepth <= 0) { dragDepth = 0; $('#dragveil').hidden = true; $('#drop').classList.remove('over'); } });
 addEventListener('dragover', (e) => { if (hasFiles(e)) e.preventDefault(); });
 addEventListener('drop', (e) => {
   if (!hasFiles(e)) return;
-  e.preventDefault(); dragDepth = 0; $('#dragveil').hidden = true;
-  if (view === 'new') addFiles(e.dataTransfer.files);
+  e.preventDefault(); dragDepth = 0; $('#dragveil').hidden = true; $('#drop').classList.remove('over');
+  if (dropOK()) { if (step === 2) goStep(1); addFiles(e.dataTransfer.files); }
 });
+
+/* ---------- step 2: per-layer cards (one or two smart controls each) ---------- */
+function seg(options, value, onpick) {
+  const box = el('div', { className: 'seg' });
+  options.forEach(([v, label]) => box.append(el('button', { className: v === value ? 'on' : '', type: 'button', on: { click: () => { onpick(v); renderLayers(); } } }, label)));
+  return box;
+}
+function range(l, key, min, max, step, unit = t('unit_m')) {
+  const out = el('output', {}, `${l[key]} ${unit}`);
+  const inp = el('input', { type: 'range', min, max, step, value: l[key], on: { input: (e) => { l[key] = +e.target.value; out.textContent = `${l[key]} ${unit}`; } } });
+  return el('div', { className: 'rng' }, inp, out);
+}
+const ctl = (label, ...kids) => el('div', { className: 'ctl' }, el('span', { className: 'lab' }, label), ...kids);
+const numFields = (l) => (l.info?.fields || []).filter((f) => f.numeric).map((f) => f.name);
+function fieldSelect(l, key, names, withNone = false) {
+  return el('select', { on: { change: (e) => { l[key] = e.target.value; } } },
+    withNone ? el('option', { value: '' }, t('none')) : null,
+    names.map((n) => el('option', { value: n, selected: n === l[key] }, n)));
+}
+function layerControls(l) {
+  const nums = numFields(l);
+  if (l.geometry === 'line') {
+    const c = [];
+    if (nums.length) c.push(seg([['fixed', t('w_fixed')], ['field', t('w_data')]], l.wmode, (v) => { l.wmode = v; if (v === 'field' && !l.wf) l.wf = nums[0]; }));
+    c.push(l.wmode === 'field' ? fieldSelect(l, 'wf', nums) : range(l, 'w', 1, 30, 0.5));
+    return ctl(t('road_w'), ...c);
+  }
+  if (l.geometry === 'polygon') {
+    const opts = [['flat', t('h_flat')], ['fixed', t('h_fixed')]]; if (nums.length) opts.push(['field', t('h_field')]);
+    const c = [seg(opts, l.hmode, (v) => { l.hmode = v; if (v === 'field' && !l.hf) l.hf = nums[0]; })];
+    if (l.hmode === 'fixed') c.push(range(l, 'h', 1, 200, 1));
+    if (l.hmode === 'field') { c.push(fieldSelect(l, 'hf', nums)); if (l.hscale !== 1) c.push(el('span', { className: 'auto' }, `${t('floors_note')}`)); }
+    return ctl(t('bld_h'), ...c);
+  }
+  if (l.geometry === 'point') return el('div', {}, ctl(t('pt_size'), range(l, 'ps', 0.5, 30, 0.5)), ctl(t('pt_h'), range(l, 'ph', 0.5, 60, 0.5)));
+  return null;
+}
+function renderLayers() {
+  const box = $('#layers'); box.innerHTML = '';
+  layers.filter((l) => l.state === 'ok').forEach((l) => {
+    const adv = el('details', { className: 'adv' }, el('summary', {}, t('advanced')),
+      el('div', { className: 'g2' },
+        el('label', {}, t('zoff'), el('input', { type: 'number', step: '0.05', value: l.zo, on: { input: (e) => (l.zo = +e.target.value) } })),
+        el('label', {}, t('zf'), fieldSelect(l, 'zf', numFields(l), true)),
+        el('label', {}, t('srccrs'), el('input', { value: l.sc || '', placeholder: 'EPSG:3857', on: { input: (e) => (l.sc = e.target.value) } })),
+        l.source === 'arcgis' ? el('label', {}, t('where'), el('input', { value: l.where, on: { input: (e) => (l.where = e.target.value) } })) : null));
+    box.append(el('div', { className: 'lcard' },
+      el('div', { className: 'head' },
+        el('input', { type: 'color', value: l.col, on: { input: (e) => (l.col = e.target.value) } }),
+        el('input', { type: 'text', className: 'ln', value: l.name, 'aria-label': t('layer_name'), on: { change: (e) => { l.name = e.target.value.replace(/[^\w\-]+/g, '_').slice(0, 40) || l.name; e.target.value = l.name; } } }),
+        el('span', { className: 'detect' }, layerSummary(l))),
+      l.mixed ? el('p', { className: 'muted small' }, t('mixed')) : null,
+      layerControls(l), adv));
+  });
+}
+let tileTouched = false;
+$('#tile').addEventListener('input', () => (tileTouched = true));
+function prepareStep2() {
+  renderLayers();
+  if (!tileTouched) { const ts = layers.map((l) => l.tile).filter(Boolean); if (ts.length) $('#tile').value = Math.max(...ts); }
+  msg('');
+}
 
 /* ---------- collect + job flow ---------- */
 const creds = {}; // connId -> {username,password,token}; memory only, never persisted
 function collect() {
   const up = new FormData();
-  const spec = { name: $('#pname').value, crs_target: $('#crs').value, tile_size_m: +$('#tile').value || 1000, base_elevation_m: +$('#base').value || 0,
+  const spec = { name: $('#pname').value || 'Project', crs_target: $('#crs').value, tile_size_m: +$('#tile').value || 1000, base_elevation_m: +$('#base').value || 0,
     layers: layers.map((l, i) => {
-      const L = { name: l.name, source: l.source, line_width_m: l.w || 6, height_m: l.h || 0, z_offset_m: l.zo ?? 0, color: l.col, point_size_m: l.ps || 1.5 };
-      if (l.hf?.trim()) L.height_field = l.hf.trim();
+      const L = { name: l.name, source: l.source, color: l.col, z_offset_m: l.zo ?? 0 };
+      if (l.geometry === 'line') { L.line_width_m = l.w || 6; if (l.wmode === 'field' && l.wf) L.width_field = l.wf; }
+      if (l.geometry === 'polygon') {
+        if (l.hmode === 'field' && l.hf) { L.height_field = l.hf; L.height_scale = l.hscale || 1; } else if (l.hmode === 'fixed') L.height_m = l.h;
+      }
+      if (l.geometry === 'point') { L.point_size_m = l.ps; L.point_height_m = l.ph; }
+      if (l.zf) L.z_field = l.zf;
       if (l.sc?.trim()) L.source_crs = l.sc.trim().toUpperCase();
       if (l.source === 'upload') { const fn = `${i}_${l.file}`; L.file = fn; up.append('files', l.fileObj, fn); }
-      else if (l.source === 'demo') { L.url = l.url; if (l.url === 'trees') L.point_height_m = 9; }
+      else if (l.source === 'demo') { L.url = l.url; }
       else {
         L.url = l.url; if (l.type_name) L.type_name = l.type_name; if (l.source === 'arcgis') L.where = l.where || '1=1';
         const c = creds[l.connId] || {};
@@ -208,16 +319,17 @@ function renderResult(j) {
 }
 async function start() {
   if (!layers.length) { msg(t('need_layer')); return; }
-  $('#go').disabled = true; $('#result').hidden = true;
+  $('#go').disabled = true; msg('');
+  $('#result').hidden = true; if (model) { scene.remove(model); model = null; } $('#hint').hidden = false; $('#wm').hidden = true;
+  goStep(3);
   try {
-    msg(t('working'));
     const r = await api('/api/jobs', { method: 'POST', body: collect() });
     const body = await r.json();
     if (!r.ok) throw new Error(errText(body));
     history.replaceState(null, '', `?job=${body.id}#/new`);
     const j = await poll(body.id);
-    msg(''); showGLB(`/api/jobs/${j.id}/preview.glb`); renderResult(j);
-  } catch (e) { msg(t('failed') + e.message); }
+    showGLB(`/api/jobs/${j.id}/preview.glb`); renderResult(j);
+  } catch (e) { goStep(2); msg(t('failed') + e.message); }
   $('#go').disabled = false;
 }
 $('#go').onclick = start;
@@ -225,14 +337,14 @@ $('#pay').onclick = async () => {
   const r = await (await api(`/api/jobs/${job.id}/checkout`, { method: 'POST' })).json();
   if (r.url) { location.href = r.url; return; }
   if (r.mock) await api(`/api/jobs/${job.id}/mock-pay`, { method: 'POST' });
-  renderResult(await (await api(`/api/jobs/${job.id}`)).json()); msg(t('paidnote'));
+  renderResult(await (await api(`/api/jobs/${job.id}`)).json());
 };
 async function resumeJob() {
   const qid = new URLSearchParams(location.search).get('job');
   if (!qid) return;
   const r = await api(`/api/jobs/${qid}/verify-payment`, { method: 'POST' });
   if (!r.ok) return; const j = await r.json();
-  if (j.status === 'ready') { showGLB(`/api/jobs/${qid}/preview.glb`); renderResult(j); }
+  if (j.status === 'ready') { goStep(3); showGLB(`/api/jobs/${qid}/preview.glb`); renderResult(j); }
 }
 
 /* ---------- viewer ---------- */
@@ -256,7 +368,7 @@ function showGLB(url) {
     const box = new THREE.Box3().setFromObject(model), c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
     const r = Math.max(s.x, s.z, 50);
     cam.position.set(c.x + r * 0.8, c.y + r * 0.8, c.z + r * 0.8); controls.target.copy(c); controls.update();
-    grid.position.set(c.x, box.min.y - 0.2, c.z); $('#hint').hidden = true; $('#wm').hidden = false;
+    grid.position.set(c.x, box.min.y - 0.2, c.z); $('#hint').hidden = true; $('#wm').hidden = !!(job && job.paid);
   });
 }
 
@@ -327,11 +439,18 @@ function renderCatalog() {
         meta.textContent = r.ok ? `${t(b.geometry) || '?'} · ${b.count != null ? Number(b.count).toLocaleString() : '?'} ${t('count')} · ${b.fields.length} ${t('fields')}${b.fields.length ? ': ' + b.fields.slice(0, 6).map((f) => f.name).join(', ') : ''}` : errText(b);
         l.info = r.ok ? b : null; e.target.disabled = false;
       } } }, t('info')),
-      el('button', { className: 'primary sm', on: { click: (e) => {
-        const base = { name: l.name.replace(/[^\w\-]+/g, '_').slice(0, 40) || 'layer', connId: cur.id, geometry: l.info?.geometry, count: l.info?.count };
-        if (cur.kind === 'wfs') addLayer({ ...base, source: 'wfs', url: cur.url, type_name: l.ref });
-        else if (cur.kind === 'arcgis') addLayer({ ...base, source: 'arcgis', url: l.ref });
-        else addLayer({ ...base, source: 'geojson_url', url: l.ref });
+      el('button', { className: 'primary sm', on: { click: async (e) => {
+        e.target.disabled = true;
+        let info = l.info;
+        if (!info) {
+          const r = await jpost(`/api/connections/${cur.id}/info`, { ref: l.ref, ...credsBody(cur.id) }); const b = await r.json();
+          if (!r.ok) { meta.textContent = errText(b); e.target.disabled = false; return; }
+          info = l.info = b;
+        }
+        const base = { name: l.name.replace(/[^\w\-]+/g, '_').slice(0, 40) || 'layer', connId: cur.id };
+        if (cur.kind === 'wfs') addServiceLayer({ ...base, source: 'wfs', url: cur.url, type_name: l.ref }, info);
+        else if (cur.kind === 'arcgis') addServiceLayer({ ...base, source: 'arcgis', url: l.ref }, info);
+        else addServiceLayer({ ...base, source: 'geojson_url', url: l.ref }, info);
         e.target.textContent = '✓ ' + t('added');
       } } }, t('add')));
     box.append(row);
@@ -339,7 +458,7 @@ function renderCatalog() {
 }
 $('#addsrc').onclick = async () => {
   await loadConns();
-  if (!conns.length) { location.hash = '#/sources'; return; }
+  if (!conns.length) { location.hash = '#/sources'; $('#newsvc').click(); return; }
   if (conns.length === 1) { openCatalog(conns[0]); return; }
   const pick = el('div', { className: 'overlay' }, el('div', { className: 'card pad wide' }, el('h2', {}, t('nav_sources')),
     conns.map((c) => el('div', { className: 'crow' }, el('div', { className: 'nm' }, el('b', {}, c.name), el('div', { className: 'meta' }, kindName[c.kind])),
@@ -361,7 +480,7 @@ async function loadJobs() {
 
 /* ---------- boot ---------- */
 (async () => {
-  i18n();
+  i18n(); goStep(1);
   const r = await fetch('/api/auth/me', { credentials: 'same-origin' });
   if (r.ok) onUser(await r.json()); else showAuth();
 })();

@@ -23,9 +23,13 @@ pytest -q
 ```
 Docker: `docker compose up --build`.
 
-## Adding data
+## Flow (3-step wizard)
 
-Drag & drop GeoJSON files anywhere on the **Convert** page (or click the drop zone / *Upload file*). Each file becomes a layer. Services: see below. Shapefile/GPKG/KML are not supported yet — convert to GeoJSON first (e.g. `ogr2ogr -f GeoJSON out.geojson in.shp`).
+1. **Data** — drag & drop GeoJSON files onto the big drop zone (or click it), add layers from a saved service, or try the demo. Each file is read immediately: geometry type, feature count, CRS and fields are detected. If a file has projected coordinates but no declared CRS, the wizard asks for it instead of guessing.
+2. **Settings** — pre-filled from the data (colour from the layer name, building height from a `height`/`kat`/`floors` field, road width, tile size from the data extent, auto UTM). Each layer shows only one or two simple controls; everything else is under *Advanced*.
+3. **Preview** — watermarked 3D preview, price, pay, download.
+
+Shapefile/GPKG/KML are not supported yet — convert to GeoJSON first (e.g. `ogr2ogr -f GeoJSON out.geojson in.shp`).
 
 ## Sources (services) and catalog
 

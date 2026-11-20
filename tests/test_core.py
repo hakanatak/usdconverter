@@ -463,3 +463,48 @@ def test_connections_catalog_info(tmp_path):
     assert bad.post("/api/connections", json={"name": "x", "kind": "arcgis", "url": "http://169.254.169.254/"}).status_code == 422
     assert a.delete(f"/api/connections/{w['id']}").status_code == 200 and len(a.get("/api/connections").json()) == 1
     srv.shutdown()
+
+
+# ---- inspect / smart defaults ----
+def test_suggest_rules():
+    from usdconv import suggest as sg
+    f = lambda *n: [{"name": x, "numeric": True} for x in n]  # noqa: E731
+    s = sg.suggest("binalar", "polygon", f("OBJECTID", "Height"))
+    assert s["height_field"] == "Height" and s["height_scale"] == 1.0 and s["color"] == "#d4c4a8"
+    s = sg.suggest("x", "polygon", f("kat"))
+    assert s["height_field"] == "kat" and s["height_scale"] == 3.0
+    assert sg.suggest("bina", "polygon", f("id"))["height_m"] == 10.0     # building-like name, no field -> sensible fixed height
+    assert sg.suggest("yollar", "line", f("genislik"))["width_field"] == "genislik"
+    assert sg.suggest("ağaçlar", "point", [])["color"] == "#3fa34d"
+    assert sg.nice_tile(900) == 250 and sg.nice_tile(100) == 100 and sg.nice_tile(1e6) == 5000
+
+
+def test_inspect_endpoint(tmp_path):
+    c = mk(Settings(data_dir=tmp_path))
+    def up(data, name="binalar.geojson", crs=""):
+        return c.post("/api/inspect", files={"file": (name, data)}, data={"source_crs": crs})
+    b = sources.demo_data("buildings")
+    r = up(json.dumps(b)).json()
+    assert r["geometry"] == "polygon" and r["count"] == 64 and r["crs"] == "EPSG:4326"
+    assert r["suggest"]["height_field"] == "height" and r["suggested_tile_m"] in (100, 250, 500) and any(f["name"] == "height" and f["numeric"] for f in r["fields"])
+    # projected numbers without CRS -> asks for it instead of guessing; then works with an override
+    proj = {"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {"h": 5}, "geometry": {"type": "Point", "coordinates": [390000, 5819000]}}]}
+    r = up(json.dumps(proj), "p.geojson").json()
+    assert r["needs_crs"] is True
+    r = up(json.dumps(proj), "p.geojson", "EPSG:32633").json()
+    assert r["needs_crs"] is False and r["geometry"] == "point" and abs(r["bbox4326"][0] - 13.4) < 0.5
+    assert up(b"not json").status_code == 400
+    assert TestClient(c.app).post("/api/inspect", files={"file": ("x", b"{}")}, headers={"X-CSRF": "1"}).status_code == 401
+
+
+def test_height_scale_and_width_field():
+    spec = JobSpec(layers=[LayerSpec(name="b", source="upload", file="b.json", height_field="kat", height_scale=3.0)])
+    sq = lambda x: {"type": "Polygon", "coordinates": [[[13.4 + x, 52.5], [13.4005 + x, 52.5], [13.4005 + x, 52.5005], [13.4 + x, 52.5005], [13.4 + x, 52.5]]]}  # noqa: E731
+    fc = {"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {"kat": 4}, "geometry": sq(0)}]}
+    res = engine.build(spec, [(spec.layers[0], fc)])
+    assert abs(res.layers[0].feature_meshes[0][1].verts[:, 2].max() - 12.1) < 0.01   # 4 floors * 3 m + 0.1 z offset
+    spec = JobSpec(layers=[LayerSpec(name="r", source="upload", file="r.json", width_field="w")])
+    ln = lambda w: {"type": "Feature", "properties": {"w": w}, "geometry": {"type": "LineString", "coordinates": [[13.4, 52.5], [13.401, 52.5]]}}  # noqa: E731
+    res = engine.build(spec, [(spec.layers[0], {"type": "FeatureCollection", "features": [ln(4), ln(20)]})])
+    ys = [m.verts[:, 1].max() - m.verts[:, 1].min() for _, m in res.layers[0].feature_meshes]
+    assert ys[1] > 3 * ys[0]

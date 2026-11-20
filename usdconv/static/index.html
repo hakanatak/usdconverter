@@ -38,45 +38,71 @@
 
 <!-- workspace -->
 <div id="dragveil" hidden><div data-i18n="drop_release"></div></div>
-<main id="v-new" class="view">
-  <aside class="side">
-    <div class="sec">
-      <h3 data-i18n="project"></h3>
-      <label><span data-i18n="name"></span><input id="pname" value="My project"></label>
-      <div class="g2">
-        <label><span data-i18n="crs"></span><select id="crs"><option value="auto_utm" data-i18n="autoutm"></option><option value="EPSG:3857">EPSG:3857</option><option value="EPSG:5254">EPSG:5254</option><option value="EPSG:32635">EPSG:32635</option></select></label>
-        <label><span data-i18n="tile"></span><input id="tile" type="number" value="1000" min="50"></label>
-        <label><span data-i18n="base"></span><input id="base" type="number" value="0"></label>
-        <label><span data-i18n="anchor"></span><div class="g2"><input id="ax" type="number" placeholder="X"><input id="ay" type="number" placeholder="Y"></div></label>
-      </div>
-    </div>
-    <div class="sec grow">
-      <div class="rowh"><h3 data-i18n="layers"></h3><span id="lcount" class="muted"></span></div>
-      <div class="addrow">
-        <button id="addsrc" class="primary sm" data-i18n="from_source"></button>
-        <button id="addfile" class="ghost sm" data-i18n="from_file"></button>
-        <button id="demo" class="ghost sm" data-i18n="demo"></button>
+<main id="v-new" class="view wiz">
+  <ol id="stepper">
+    <li data-s="1"><i>1</i><span data-i18n="st1"></span></li>
+    <li data-s="2"><i>2</i><span data-i18n="st2"></span></li>
+    <li data-s="3"><i>3</i><span data-i18n="st3"></span></li>
+  </ol>
+
+  <!-- step 1: add data -->
+  <section id="s1" class="step">
+    <div class="center">
+      <h1 data-i18n="s1_title"></h1>
+      <div id="drop" tabindex="0">
+        <div class="ico">⬆</div>
+        <b data-i18n="drop_title"></b>
+        <span data-i18n="drop_sub"></span>
         <input id="fileinput" type="file" accept=".geojson,.json" multiple hidden>
       </div>
-      <div id="drop" tabindex="0"><b data-i18n="drop_title"></b><span data-i18n="drop_sub"></span></div>
+      <div class="or" data-i18n="or"></div>
+      <div class="alts">
+        <button id="addsrc" class="alt"><b data-i18n="alt_service"></b><small data-i18n="alt_service_sub"></small></button>
+        <button id="demo" class="alt"><b data-i18n="alt_demo"></b><small data-i18n="alt_demo_sub"></small></button>
+      </div>
+      <div id="added"></div>
+      <div id="msg1" class="warn"></div>
+      <button id="next1" class="primary big" disabled data-i18n="next"></button>
+    </div>
+  </section>
+
+  <!-- step 2: settings -->
+  <section id="s2" class="step" hidden>
+    <div class="center wide2">
+      <h1 data-i18n="s2_title"></h1>
+      <p class="muted" data-i18n="s2_sub"></p>
+      <label class="pname"><span data-i18n="name"></span><input id="pname" value="My project"></label>
       <div id="layers"></div>
-    </div>
-    <div class="sec">
-      <button id="go" class="primary big" data-i18n="convert"></button>
+      <details class="adv" id="projadv">
+        <summary data-i18n="advanced"></summary>
+        <div class="g2">
+          <label><span data-i18n="crs"></span><select id="crs"><option value="auto_utm" data-i18n="autoutm"></option><option value="EPSG:3857">EPSG:3857</option><option value="EPSG:5254">EPSG:5254</option><option value="EPSG:32635">EPSG:32635</option></select></label>
+          <label><span data-i18n="tile"></span><input id="tile" type="number" value="1000" min="50"></label>
+          <label><span data-i18n="base"></span><input id="base" type="number" value="0"></label>
+          <label><span data-i18n="anchor"></span><div class="g2"><input id="ax" type="number" placeholder="X"><input id="ay" type="number" placeholder="Y"></div></label>
+        </div>
+      </details>
       <div id="msg" class="warn"></div>
+      <div class="navrow"><button id="back2" class="ghost" data-i18n="back"></button><button id="go" class="primary" data-i18n="convert"></button></div>
     </div>
-  </aside>
-  <section id="view"><div id="wm" hidden>PREVIEW · usd-converter</div><div id="hint" data-i18n="hint"></div></section>
-  <aside class="side right" id="result" hidden>
-    <div class="sec">
-      <h3 data-i18n="result"></h3>
-      <div id="stats"></div>
-      <div id="price"></div>
-      <button id="pay" class="primary big" data-i18n="pay"></button>
-      <a id="dl" class="btn primary big" hidden data-i18n="download"></a>
-      <p class="muted small" id="paynote"></p>
-    </div>
-  </aside>
+  </section>
+
+  <!-- step 3: preview -->
+  <section id="s3" class="step s3" hidden>
+    <section id="view"><div id="wm" hidden>PREVIEW · usd-converter</div>
+      <div id="hint"><div class="spin"></div><div id="hinttxt" data-i18n="working"></div></div></section>
+    <aside class="side right" id="result" hidden>
+      <div class="sec">
+        <h3 data-i18n="result"></h3>
+        <div id="stats"></div>
+        <div id="price"></div>
+        <button id="pay" class="primary big" data-i18n="pay"></button>
+        <a id="dl" class="btn primary big" hidden data-i18n="download"></a>
+        <p class="muted small" id="paynote"></p>
+      </div>
+      <div class="sec"><button id="tweak" class="ghost big" data-i18n="tweak"></button><button id="again" class="ghost big" data-i18n="again"></button></div>
+    </aside>
+  </section>
 </main>
 
 <!-- sources -->
