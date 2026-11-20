@@ -1,0 +1,28 @@
+[project]
+name = "usd-converter"
+version = "0.1.0"
+description = "Upload GIS data (GeoJSON, ArcGIS REST, WFS), preview it in 3D in the browser, pay, and download OpenUSD + GLB."
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.29",
+  "shapely>=2.1",
+  "pyproj>=3.6",
+  "numpy>=1.26",
+  "httpx>=0.27",
+  "python-multipart>=0.0.9",
+  "pydantic>=2.6",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+include = ["usdconv*"]
+
+[tool.setuptools.package-data]
+usdconv = ["static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

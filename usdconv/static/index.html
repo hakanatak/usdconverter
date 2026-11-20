@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>USD Converter</title>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{"imports":{"three":"/vendor/three/build/three.module.js",
+"three/addons/":"/vendor/three/examples/jsm/"}}
+</script>
+</head>
+<body>
+<header>
+  <b>USD Converter</b><span class="tag" data-i18n="tagline"></span>
+  <span class="sp"></span>
+  <button id="lang" class="ghost">EN</button>
+</header>
+<main>
+  <aside id="panel">
+    <h3 data-i18n="project"></h3>
+    <label><span data-i18n="name"></span><input id="pname" value="My project"></label>
+    <label><span data-i18n="crs"></span>
+      <select id="crs"><option value="auto_utm" data-i18n="autoutm"></option><option value="EPSG:3857">EPSG:3857</option><option value="EPSG:5254">EPSG:5254</option></select></label>
+    <label><span data-i18n="tile"></span><input id="tile" type="number" value="1000" min="50"></label>
+    <label><span data-i18n="base"></span><input id="base" type="number" value="0"></label>
+    <h3 data-i18n="layers"></h3>
+    <div id="layers"></div>
+    <div class="row">
+      <button id="add" class="ghost" data-i18n="addlayer"></button>
+      <button id="demo" class="ghost" data-i18n="demo"></button>
+    </div>
+    <button id="go" class="primary" data-i18n="convert"></button>
+    <div id="msg"></div>
+    <div id="result" hidden>
+      <h3 data-i18n="result"></h3>
+      <div id="stats"></div>
+      <div id="price"></div>
+      <button id="pay" class="primary" data-i18n="pay"></button>
+      <a id="dl" class="primary btn" hidden data-i18n="download"></a>
+    </div>
+  </aside>
+  <section id="view"><div id="wm" hidden>PREVIEW · usd-converter</div><div id="hint" data-i18n="hint"></div></section>
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>
