@@ -57,6 +57,13 @@ def create_app(cfg: Settings | None = None) -> FastAPI:
             return JSONResponse({"error": "missing X-CSRF header"}, status_code=403)
         return await call_next(request)
 
+    @app.middleware("http")
+    async def no_cache_static(request: Request, call_next):
+        resp = await call_next(request)
+        if not request.url.path.startswith("/api/"):
+            resp.headers["Cache-Control"] = "no-cache"   # always revalidate, so UI updates show up after a git pull
+        return resp
+
     def start_session(request: Request, response: Response, user: dict):
         tok, th = auth.new_token()
         exp = time.time() + cfg.session_days * 86400

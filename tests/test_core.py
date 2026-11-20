@@ -528,3 +528,9 @@ def test_reset_password_cli(tmp_path, monkeypatch):
     assert admin_cli.main(["reset-password", "a@example.com", "--data-dir", str(tmp_path)]) == 1
     assert admin_cli.main(["reset-password", "nobody@example.com", "--data-dir", str(tmp_path)]) == 1
     assert admin_cli.main(["reset-password", "a@example.com", "--data-dir", str(tmp_path / "nope")]) == 2
+
+
+def test_static_is_not_cached(tmp_path):
+    c = TestClient(create_app(Settings(data_dir=tmp_path)))
+    assert c.get("/app.js").headers["cache-control"] == "no-cache"
+    assert "wiz" in c.get("/").text and 'id="stepper"' in c.get("/").text   # wizard UI is what gets served
