@@ -20,14 +20,32 @@ def _parse(raw: bytes) -> dict:
     return normalize(fc)
 
 
+def _clean(fc: dict) -> dict:
+    """Drop malformed entries so downstream code can rely on dict features/geometry/properties."""
+    feats = fc.get("features")
+    if not isinstance(feats, list):
+        raise SourceError("GeoJSON has no features list")
+    out = []
+    for f in feats:
+        if not isinstance(f, dict):
+            continue
+        g = f.get("geometry")
+        p = f.get("properties")
+        out.append({**f, "geometry": g if isinstance(g, dict) else None, "properties": p if isinstance(p, dict) else {}})
+    fc["features"] = out
+    return fc
+
+
 def normalize(fc: dict) -> dict:
+    if not isinstance(fc, dict):
+        raise SourceError("not a GeoJSON object")
     t = fc.get("type")
     if t == "FeatureCollection":
-        return fc
+        return _clean(fc)
     if t == "Feature":
-        return {"type": "FeatureCollection", "features": [fc]}
+        return _clean({"type": "FeatureCollection", "features": [fc]})
     if t in ("Point", "MultiPoint", "LineString", "MultiLineString", "Polygon", "MultiPolygon", "GeometryCollection"):
-        return {"type": "FeatureCollection", "features": [{"type": "Feature", "geometry": fc, "properties": {}}]}
+        return _clean({"type": "FeatureCollection", "features": [{"type": "Feature", "geometry": fc, "properties": {}}]})
     raise SourceError("not a GeoJSON FeatureCollection")
 
 

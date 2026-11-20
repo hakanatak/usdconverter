@@ -10,7 +10,10 @@ class CRSError(ValueError):
 
 def detect_source_crs(fc: dict, override: str | None) -> CRS:
     if override:
-        return CRS.from_user_input(override)
+        try:
+            return CRS.from_user_input(override)
+        except Exception as e:
+            raise CRSError(f"unknown coordinate system: {override}") from e
     crs = fc.get("crs")
     if crs:
         name = (crs.get("properties") or {}).get("name")
@@ -36,7 +39,7 @@ def detect_source_crs(fc: dict, override: str | None) -> CRS:
 def _first_xy(c):
     while isinstance(c, (list, tuple)) and c and isinstance(c[0], (list, tuple)):
         c = c[0]
-    if isinstance(c, (list, tuple)) and len(c) >= 2:
+    if isinstance(c, (list, tuple)) and len(c) >= 2 and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in c[:2]):
         return c[0], c[1]
     return None, None
 

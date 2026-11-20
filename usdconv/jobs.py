@@ -54,9 +54,11 @@ def run_job(cfg: Settings, store: Store, job_id: str, spec: JobSpec, uploads: di
 
         cents = payments.quote_cents(total_features, cfg)
         store.update(job_id, status="ready", report=report, price_cents=cents)
-    except Exception as e:  # surfaced to the user as a readable message
-        traceback.print_exc()
+    except (ValueError, KeyError) as e:   # expected, user-fixable problems (bad data / CRS / limits / unreachable source)
         store.update(job_id, status="failed", error=str(e)[:500])
+    except Exception as e:  # unexpected: log the details, show a short generic message
+        traceback.print_exc()
+        store.update(job_id, status="failed", error=f"Unexpected error while converting ({type(e).__name__}). The details were logged on the server.")
     finally:
         pass
 

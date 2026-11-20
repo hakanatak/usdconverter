@@ -584,3 +584,36 @@ def test_https_catalog_with_ca_and_errors(tmp_path):
     slow.shutdown()
     r = run({"sub": "d"}, "http://127.0.0.1:1/ows")                                          # connection refused
     assert r.status_code == 400 and "connect" in r.json()["error"].lower()
+
+
+# ---- robustness: malformed input must never produce a bare 500 or a stuck job ----
+WEIRD = [b"{}", b"[]", b"null", b"5", b'{"type":"FeatureCollection","features":[null,5,"x"]}',
+         b'{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[]},"properties":null}]}',
+         b'{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Point","coordinates":["a","b"]},"properties":[]}]}',
+         b'{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"GeometryCollection","geometries":[]},"properties":{}}]}',
+         b'{"type":"FeatureCollection","crs":null,"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[1,1]},"properties":{}}]}',
+         b'{"type":"FeatureCollection","crs":{"type":"name","properties":null},"features":[{"type":"Feature","geometry":{"type":"Point","coordinates":[1,1]},"properties":{}}]}',
+         b'{"type":"FeatureCollection","features":[{"type":"Feature","geometry":{"type":"Polygon","coordinates":[]},"properties":{"a":{"b":1}}}]}',
+         b'{"type":"FeatureCollection","features":"nope"}', b"\xff\xfe", b""]
+
+
+def test_malformed_inputs_never_500(tmp_path):
+    c = TestClient(create_app(Settings(data_dir=tmp_path)), headers={"X-CSRF": "1"}, raise_server_exceptions=False)
+    c.post("/api/auth/signup", json={"email": "a@example.com", "password": "correct-horse-battery"})
+    for w in WEIRD:
+        for crs_ in ("", "EPSG:99999", "EPSG:3857"):
+            r = c.post("/api/inspect", files={"file": ("a.geojson", w)}, data={"source_crs": crs_})
+            assert r.status_code < 500 and "error" in r.json() or r.status_code == 200, (w, crs_, r.text)
+        spec = {"layers": [{"name": "a", "source": "upload", "file": "a.geojson"}]}
+        jid = c.post("/api/jobs", data={"spec": json.dumps(spec)}, files=[("files", ("a.geojson", w))]).json()["id"]
+        j = wait_ready(c, jid)
+        assert j["status"] in ("ready", "failed")
+        if j["status"] == "failed":
+            assert "Traceback" not in j["error"] and "object has no attribute" not in j["error"], (w, j["error"])
+    for raw in (b"notjson", b"[1]", b"null", b'"x"'):
+        for path in ("/api/auth/login", "/api/auth/signup", "/api/connections"):
+            assert c.post(path, content=raw, headers={"X-CSRF": "1"}).status_code == 422, (path, raw)
+    assert c.post("/api/auth/signup", json={"email": 5, "password": None}).status_code == 422
+    assert c.post("/api/connections", json={"name": "x", "kind": "wfs", "url": None}).status_code == 422
+    r = c.post("/api/jobs", data={"spec": "{}"})                      # error bodies are always JSON
+    assert r.status_code == 422 and r.headers["content-type"].startswith("application/json")

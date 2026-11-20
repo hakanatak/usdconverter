@@ -73,7 +73,12 @@ $('#lang').onclick = () => { lang = lang === 'tr' ? 'en' : 'tr'; localStorage.la
 
 /* ---------- api ---------- */
 const api = (u, o = {}) => fetch(u, { credentials: 'same-origin', ...o, headers: { 'X-CSRF': '1', ...(o.headers || {}) } })
-  .then((r) => { if (r.status === 401 && !u.startsWith('/api/auth/')) showAuth(); return r; });
+  .then((r) => {
+    if (r.status === 401 && !u.startsWith('/api/auth/')) showAuth();
+    const orig = r.json.bind(r);   // a non-JSON body (e.g. a proxy error page) becomes {error} instead of throwing
+    r.json = async () => { try { return await orig(); } catch { return { error: `HTTP ${r.status}` }; } };
+    return r;
+  });
 const jpost = (u, body, method = 'POST') => api(u, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(90000) });
 // like r.json() but never throws: unreadable / empty bodies become {error: ...}
 const readJson = async (r) => { try { return await r.json(); } catch { return { error: `HTTP ${r.status}` }; } };
@@ -95,7 +100,7 @@ addEventListener('hashchange', route);
 /* ---------- accounts ---------- */
 function showAuth() { $('#auth').hidden = false; $('#who').hidden = true; }
 async function authCall(kind) {
-  const r = await fetch(`/api/auth/${kind}`, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF': '1', 'Content-Type': 'application/json' },
+  const r = await api(`/api/auth/${kind}`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: $('#aemail').value, password: $('#apass').value }) });
   const b = await r.json();
   if (!r.ok) { $('#amsg').textContent = errText(b); return; }

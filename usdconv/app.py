@@ -41,6 +41,21 @@ def create_app(cfg: Settings | None = None) -> FastAPI:
             raise HTTPException(403, "admin only")
         return u
 
+    async def body(request: Request) -> dict:
+        try:
+            b = await request.json()
+        except Exception:
+            raise HTTPException(422, "request body must be JSON")
+        if not isinstance(b, dict):
+            raise HTTPException(422, "request body must be a JSON object")
+        return b
+
+    @app.exception_handler(Exception)
+    async def unhandled(request: Request, exc: Exception):
+        import traceback
+        traceback.print_exception(exc)
+        return JSONResponse({"error": f"Internal server error ({type(exc).__name__}). See the server log."}, status_code=500)
+
     def get_job(job_id: str, request: Request) -> dict:
         """Owner or admin only; anything else is a 404 so job ids cannot be probed."""
         u = current_user(request)
@@ -77,8 +92,8 @@ def create_app(cfg: Settings | None = None) -> FastAPI:
 
     @app.post("/api/auth/signup")
     async def signup(request: Request, response: Response):
-        b = await request.json()
-        email, pw = str(b.get("email", "")).strip().lower(), str(b.get("password", ""))
+        b = await body(request)
+        email, pw = str(b.get("email") or "").strip().lower(), str(b.get("password") or "")
         if not auth.EMAIL_RE.match(email):
             raise HTTPException(422, "invalid e-mail")
         try:
@@ -94,8 +109,8 @@ def create_app(cfg: Settings | None = None) -> FastAPI:
 
     @app.post("/api/auth/login")
     async def login(request: Request, response: Response):
-        b = await request.json()
-        email, pw = str(b.get("email", "")).strip().lower(), str(b.get("password", ""))
+        b = await body(request)
+        email, pw = str(b.get("email") or "").strip().lower(), str(b.get("password") or "")
         u = store.user_by_email(email)
         if u and auth.locked(u):
             raise HTTPException(429, "too many failed attempts; try again in 15 minutes")
@@ -192,7 +207,7 @@ def create_app(cfg: Settings | None = None) -> FastAPI:
     @app.post("/api/connections")
     async def add_connection(request: Request):
         u = current_user(request)
-        b = await request.json()
+        b = await body(request)
         kind, url, name = str(b.get("kind", "")), str(b.get("url", "")).strip(), str(b.get("name", "")).strip()[:80]
         if kind not in ("arcgis", "wfs", "geojson_url") or not name:
             raise HTTPException(422, "name and a valid type are required")
@@ -217,7 +232,7 @@ def create_app(cfg: Settings | None = None) -> FastAPI:
 
     @app.post("/api/connections/{cid}/catalog")
     async def conn_catalog(cid: str, request: Request):
-        c, (us, pw, tk) = conn_and_creds(cid, request, await request.json())
+        c, (us, pw, tk) = conn_and_creds(cid, request, await body(request))
         try:
             return {"layers": connectors.catalog(cfg, c["kind"], c["url"], us, pw, tk)}
         except (SourceError, ValueError) as e:
@@ -227,10 +242,10 @@ def create_app(cfg: Settings | None = None) -> FastAPI:
 
     @app.post("/api/connections/{cid}/info")
     async def conn_info(cid: str, request: Request):
-        body = await request.json()
-        c, (us, pw, tk) = conn_and_creds(cid, request, body)
+        b = await body(request)
+        c, (us, pw, tk) = conn_and_creds(cid, request, b)
         try:
-            return connectors.layer_info(cfg, c["kind"], c["url"], str(body.get("ref", "")), us, pw, tk)
+            return connectors.layer_info(cfg, c["kind"], c["url"], str(b.get("ref", "")), us, pw, tk)
         except (SourceError, ValueError) as e:
             raise HTTPException(400, str(e)) from e
         except Exception as e:  # never leave the UI waiting on an unreadable 500
