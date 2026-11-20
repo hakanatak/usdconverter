@@ -20,7 +20,7 @@ class Settings:
     max_features: int = field(default_factory=lambda: _i("USDC_MAX_FEATURES", 200_000))
     preview_max_features: int = field(default_factory=lambda: _i("USDC_PREVIEW_MAX_FEATURES", 1500))
     retention_hours: int = field(default_factory=lambda: _i("USDC_RETENTION_HOURS", 72))
-    fetch_timeout_s: int = field(default_factory=lambda: _i("USDC_FETCH_TIMEOUT_S", 30))
+    fetch_timeout_s: int = field(default_factory=lambda: _i("USDC_FETCH_TIMEOUT_S", 60))
     workers: int = field(default_factory=lambda: _i("USDC_WORKERS", 2))
     admin_emails: str = field(default_factory=lambda: os.environ.get("USDC_ADMIN_EMAILS", ""))
     session_days: int = field(default_factory=lambda: _i("USDC_SESSION_DAYS", 14))
