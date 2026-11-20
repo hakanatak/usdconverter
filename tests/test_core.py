@@ -253,3 +253,70 @@ def test_manual_anchor():
         demo_spec(anchor_x=1.0, anchor_y=2.0)            # needs explicit CRS
     with pytest.raises(Exception):
         demo_spec(crs_target="EPSG:32633", anchor_x=1.0)  # both or none
+
+
+# ---- authenticated sources ----
+def _auth_server():
+    import base64, http.server, threading, urllib.parse
+    gj = json.dumps(sources.demo_data("roads")).encode()
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def _send(self, obj):
+            b = obj if isinstance(obj, bytes) else json.dumps(obj).encode()
+            self.send_response(200); self.send_header("Content-Type", "application/json"); self.end_headers(); self.wfile.write(b)
+        def do_POST(self):
+            body = urllib.parse.parse_qs(self.rfile.read(int(self.headers["Content-Length"])).decode())
+            if body.get("username") == ["u"] and body.get("password") == ["p"]:
+                self._send({"token": "TOK123"})
+            else:
+                self._send({"error": {"code": 400, "message": "Invalid username or password."}})
+        def do_GET(self):
+            u = urllib.parse.urlparse(self.path); q = urllib.parse.parse_qs(u.query)
+            if u.path.endswith("/rest/info"):
+                return self._send({"authInfo": {"tokenServicesUrl": f"http://127.0.0.1:{self.server.server_port}/tokens/generateToken"}})
+            if "/arcgis/rest/services" in u.path:
+                if q.get("token") != ["TOK123"]:
+                    return self._send({"error": {"code": 499, "message": "Token Required"}})
+                return self._send(gj)
+            if self.headers.get("Authorization") != "Basic " + base64.b64encode(b"u:p").decode():
+                self.send_response(401); self.end_headers(); return
+            self._send(gj)
+        def log_message(self, *a): pass
+    srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv
+
+
+def _run(tmp_path, layer):
+    c = TestClient(create_app(Settings(data_dir=tmp_path, allow_private_hosts=True)))
+    r = c.post("/api/jobs", data={"spec": json.dumps({"layers": [layer]})})
+    return c, wait_ready(c, r.json()["id"])
+
+
+def test_arcgis_login_wfs_basic_and_no_secret_leak(tmp_path):
+    srv = _auth_server(); base = f"http://127.0.0.1:{srv.server_port}"
+    ags = {"name": "a", "source": "arcgis", "url": f"{base}/arcgis/rest/services/X/FeatureServer/0"}
+    c, j = _run(tmp_path, {**ags, "username": "u", "password": "p"})
+    assert j["status"] == "ready"
+    c, j = _run(tmp_path, {**ags, "token": "TOK123"})
+    assert j["status"] == "ready"
+    c, j = _run(tmp_path, {**ags, "username": "u", "password": "WRONG-SECRET"})
+    assert j["status"] == "failed" and "WRONG-SECRET" not in json.dumps(j)
+    c, j = _run(tmp_path, ags)  # no creds -> readable error
+    assert j["status"] == "failed" and "token" in j["error"].lower()
+    wfs = {"name": "w", "source": "geojson_url", "url": f"{base}/data.geojson"}
+    assert _run(tmp_path, {**wfs, "username": "u", "password": "p"})[1]["status"] == "ready"
+    c, j = _run(tmp_path, {**wfs, "username": "u", "password": "SECRET-PW"})
+    assert j["status"] == "failed" and "SECRET-PW" not in json.dumps(j)
+    # credentials never persisted or returned
+    import sqlite3
+    row = sqlite3.connect(tmp_path / "db.sqlite").execute("SELECT group_concat(spec) FROM jobs").fetchone()[0]
+    assert "SECRET-PW" not in row and "WRONG-SECRET" not in row and "TOK123" not in row and '"p"' not in row
+    srv.shutdown()
+
+
+def test_validation_error_does_not_echo_password(tmp_path):
+    c = TestClient(create_app(Settings(data_dir=tmp_path)))
+    bad = {"layers": [{"name": "a", "source": "arcgis", "url": "http://x", "password": "TOPSECRET", "color": "red"}]}
+    r = c.post("/api/jobs", data={"spec": json.dumps(bad)})
+    assert r.status_code == 422 and "TOPSECRET" not in r.text

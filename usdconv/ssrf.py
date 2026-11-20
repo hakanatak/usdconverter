@@ -44,21 +44,25 @@ def resolve_safe(url: str, allow_private: bool = False, ports=(80, 443)):
 
 
 def safe_get(url: str, *, timeout: float = 30, max_bytes: int = 50 * 1024 * 1024,
-             max_redirects: int = 3, allow_private: bool = False, params: dict | None = None) -> bytes:
+             max_redirects: int = 3, allow_private: bool = False, params: dict | None = None,
+             headers: dict | None = None, data: dict | None = None) -> bytes:
     """GET with DNS pinning, manual redirect re-validation, size and time limits."""
     if params:
         sep = "&" if urlparse(url).query else "?"
         url = url + sep + httpx.QueryParams(params).__str__()
-    for _ in range(max_redirects + 1):
+    for hop in range(max_redirects + 1):
         ip, port, u = resolve_safe(url, allow_private)
         host_ip = f"[{ip}]" if ip.version == 6 else str(ip)
         netloc = f"{host_ip}:{port}"
         pinned = u._replace(netloc=netloc).geturl()
-        headers = {"Host": u.netloc.rsplit("@", 1)[-1], "User-Agent": "usd-converter/0.1",
+        hdrs = {"Host": u.netloc.rsplit("@", 1)[-1], "User-Agent": "usd-converter/0.1",
                    "Accept": "application/json, */*"}
+        if hop == 0 and headers:  # credentials are never forwarded to a redirect target
+            hdrs.update(headers)
         ext = {"sni_hostname": u.hostname} if u.scheme == "https" else {}
         with httpx.Client(timeout=timeout, follow_redirects=False, trust_env=False) as c:
-            with c.stream("GET", pinned, headers=headers, extensions=ext) as r:
+            with c.stream("POST" if (data and hop == 0) else "GET", pinned, headers=hdrs, extensions=ext,
+                          data=data if hop == 0 else None) as r:
                 if r.status_code in (301, 302, 303, 307, 308):
                     loc = r.headers.get("location")
                     if not loc:

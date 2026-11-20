@@ -12,6 +12,9 @@ class LayerSpec(BaseModel):
     url: Optional[str] = None           # url sources; for demo: roads|buildings|trees
     type_name: Optional[str] = None     # wfs typeName
     where: str = "1=1"                  # arcgis filter
+    username: Optional[str] = Field(None, exclude=True, repr=False, max_length=200)
+    password: Optional[str] = Field(None, exclude=True, repr=False, max_length=500)
+    token: Optional[str] = Field(None, exclude=True, repr=False, max_length=4000)
     source_crs: Optional[str] = None    # override, e.g. "EPSG:3857"
     line_width_m: float = Field(6.0, gt=0, le=500)
     height_m: float = Field(0.0, ge=0, le=2000)

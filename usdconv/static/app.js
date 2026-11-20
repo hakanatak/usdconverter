@@ -4,14 +4,14 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const T = {
   tr: { tagline:'CBS verisini 3B OpenUSD\'ye dönüştür', project:'Proje', name:'Ad', crs:'Hedef koordinat sistemi', autoutm:'Otomatik UTM',
-    anchor:'Referans noktası X / Y (hedef CRS, opsiyonel)', srccrs:'Kaynak CRS (opsiyonel, örn. EPSG:3857)', tile:'Karo boyutu (m)', base:'Taban kotu (m)', layers:'Katmanlar', addlayer:'+ Katman', demo:'Demo veri', convert:'Dönüştür ve önizle',
+    anchor:'Referans noktası X / Y (hedef CRS, opsiyonel)', srccrs:'Kaynak CRS (opsiyonel, örn. EPSG:3857)', user:'Kullanıcı adı (opsiyonel)', pass:'Parola (opsiyonel)', tokenl:'Token (opsiyonel)', tile:'Karo boyutu (m)', base:'Taban kotu (m)', layers:'Katmanlar', addlayer:'+ Katman', demo:'Demo veri', convert:'Dönüştür ve önizle',
     result:'Sonuç', pay:'Öde ve dosyaları indir', download:'İndir (USD + GLB)', hint:'Önizleme burada görünecek',
     src_upload:'Dosya yükle (GeoJSON)', src_geojson_url:'GeoJSON URL', src_arcgis:'ArcGIS REST katmanı', src_wfs:'GeoServer / WFS',
     lname:'Katman adı', url:'URL', typename:'typeName', where:'Filtre (where)', width:'Çizgi genişliği (m)', height:'Yükseklik (m)',
     hfield:'Yükseklik alanı', zoff:'Z ofseti (m)', color:'Renk', working:'İşleniyor…', failed:'Hata: ', features:'nesne', tris:'üçgen',
     truncated:'Önizleme örneklenmiştir; teslimat tüm veriyi içerir.', paidnote:'Ödeme alındı.', mock:'(Geliştirme modu: gerçek ödeme yok)' },
   en: { tagline:'Turn GIS data into 3D OpenUSD', project:'Project', name:'Name', crs:'Target CRS', autoutm:'Auto UTM',
-    anchor:'Reference point X / Y (target CRS, optional)', srccrs:'Source CRS (optional, e.g. EPSG:3857)', tile:'Tile size (m)', base:'Base elevation (m)', layers:'Layers', addlayer:'+ Layer', demo:'Demo data', convert:'Convert & preview',
+    anchor:'Reference point X / Y (target CRS, optional)', srccrs:'Source CRS (optional, e.g. EPSG:3857)', user:'Username (optional)', pass:'Password (optional)', tokenl:'Token (optional)', tile:'Tile size (m)', base:'Base elevation (m)', layers:'Layers', addlayer:'+ Layer', demo:'Demo data', convert:'Convert & preview',
     result:'Result', pay:'Pay & download files', download:'Download (USD + GLB)', hint:'Preview will appear here',
     src_upload:'Upload file (GeoJSON)', src_geojson_url:'GeoJSON URL', src_arcgis:'ArcGIS REST layer', src_wfs:'GeoServer / WFS',
     lname:'Layer name', url:'URL', typename:'typeName', where:'Filter (where)', width:'Line width (m)', height:'Height (m)',
@@ -42,6 +42,7 @@ function addLayer(pre = {}) {
       <option value="arcgis">${t('src_arcgis')}</option><option value="wfs">${t('src_wfs')}</option></select></label>
     <input class="file" type="file" accept=".geojson,.json">
     <div class="urlbox" hidden>${lab('url', '<input class="url" placeholder="https://…">')}
+      <div class="auth">${lab('user', '<input class="un" autocomplete="off">')}${lab('pass', '<input class="pw" type="password" autocomplete="new-password">')}${lab('tokenl', '<input class="tk" autocomplete="off">')}</div>
       <div class="wfs" hidden>${lab('typename', '<input class="tn">')}</div>
       <div class="ags" hidden>${lab('where', '<input class="where" value="1=1">')}</div></div>
     ${lab('srccrs', '<input class="sc" placeholder="EPSG:xxxx">')}
@@ -89,6 +90,9 @@ function collect() {
       L.file = fname; up.append('files', f, fname);
     } else {
       L.url = q('.url').value.trim();
+      if (q('.un').value) L.username = q('.un').value;
+      if (q('.pw').value) L.password = q('.pw').value;
+      if (q('.tk').value.trim()) L.token = q('.tk').value.trim();
       if (L.source === 'wfs') L.type_name = q('.tn').value.trim();
       if (L.source === 'arcgis') L.where = q('.where').value || '1=1';
     }

@@ -25,10 +25,9 @@ def job_dir(cfg: Settings, job_id: str) -> Path:
     return cfg.data_dir / "jobs" / job_id
 
 
-def run_job(cfg: Settings, store: Store, job_id: str, spec_dict: dict, uploads: dict[str, bytes]):
+def run_job(cfg: Settings, store: Store, job_id: str, spec: JobSpec, uploads: dict[str, bytes]):
     try:
         store.update(job_id, status="processing")
-        spec = JobSpec.model_validate(spec_dict)
         loaded = [(l, sources.load_layer(l, uploads, cfg)) for l in spec.layers]
         res = engine.build(spec, loaded, cfg.max_features)
         report = res.report()

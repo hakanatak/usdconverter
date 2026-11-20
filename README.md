@@ -23,6 +23,10 @@ pytest -q
 ```
 Docker: `docker compose up --build`.
 
+## Protected services (login)
+
+ArcGIS Server/Portal layers: username + password (a token is requested from the server's own token service) **or** a ready token. GeoServer/WFS and GeoJSON URLs: username + password (HTTP Basic) or a Bearer token. Credentials are used only for that job, held in memory, **never stored in the database, returned by the API, or written to logs/exports**, and never forwarded on redirects. Use a read-only service account. Servers on private/corporate networks are blocked by the SSRF guard (see roadmap: on-prem connector agent).
+
 ## Configuration (env)
 
 | Var | Default | Meaning |

@@ -1,4 +1,5 @@
 """Data acquisition: uploads, GeoJSON URL, ArcGIS REST, GeoServer/OGC WFS, built-in demo."""
+import base64
 import json
 import math
 
@@ -31,9 +32,15 @@ def normalize(fc: dict) -> dict:
 
 
 def load_layer(layer: LayerSpec, uploads: dict[str, bytes], cfg: Settings) -> dict:
-    fetch = lambda url, params=None: ssrf.safe_get(  # noqa: E731
-        url, params=params, timeout=cfg.fetch_timeout_s, max_bytes=cfg.max_upload_mb * 1024 * 1024,
-        allow_private=cfg.allow_private_hosts)
+    hdrs = {}
+    if layer.source in ("wfs", "geojson_url"):
+        if layer.username and layer.password:
+            hdrs["Authorization"] = "Basic " + base64.b64encode(f"{layer.username}:{layer.password}".encode()).decode()
+        elif layer.token:
+            hdrs["Authorization"] = "Bearer " + layer.token
+    fetch = lambda url, params=None, data=None, headers=None: ssrf.safe_get(  # noqa: E731
+        url, params=params, data=data, headers={**hdrs, **(headers or {})}, timeout=cfg.fetch_timeout_s,
+        max_bytes=cfg.max_upload_mb * 1024 * 1024, allow_private=cfg.allow_private_hosts)
     try:
         if layer.source == "upload":
             if layer.file not in uploads:
@@ -58,11 +65,14 @@ def _arcgis(layer, fetch, cfg):
     base = layer.url.rstrip("/").split("?")[0]
     if not base.endswith("/query"):
         base += "/query"
+    token = layer.token or (_arcgis_token(layer, fetch) if layer.username and layer.password else None)
     feats, offset, page = [], 0, 1000
     while True:
-        raw = fetch(base, {"where": layer.where, "outFields": "*", "outSR": 4326, "f": "geojson",
-                           "resultOffset": offset, "resultRecordCount": page})
-        fc = _parse(raw)
+        q = {"where": layer.where, "outFields": "*", "outSR": 4326, "f": "geojson",
+             "resultOffset": offset, "resultRecordCount": page}
+        if token:
+            q["token"] = token
+        fc = _parse_arcgis(fetch(base, q))
         got = fc.get("features", [])
         feats += got
         if len(feats) > cfg.max_features:
@@ -73,6 +83,40 @@ def _arcgis(layer, fetch, cfg):
             break
         offset += len(got)
     return {"type": "FeatureCollection", "features": feats, "crs_hint": "EPSG:4326"}
+
+
+def _parse_arcgis(raw: bytes) -> dict:
+    """ArcGIS reports errors as HTTP 200 + {"error": {...}}; surface them readably."""
+    try:
+        j = json.loads(raw.decode("utf-8-sig"))
+    except Exception as e:
+        raise SourceError("ArcGIS response is not JSON") from e
+    if isinstance(j, dict) and "error" in j:
+        e = j["error"] or {}
+        code = e.get("code")
+        if code in (498, 499):
+            raise SourceError("ArcGIS: token required or invalid (login failed or no access)")
+        raise SourceError(f"ArcGIS error {code}: {e.get('message', '')}"[:200])
+    return normalize(j)
+
+
+def _arcgis_token(layer, fetch) -> str:
+    """Obtain a token via the server's own token service (found through /rest/info)."""
+    url = layer.url
+    root = url.split("/rest/services")[0] if "/rest/services" in url else url.rsplit("/", 1)[0]
+    token_url = root + "/tokens/generateToken"
+    try:
+        info = json.loads(fetch(root + "/rest/info", {"f": "json"}))
+        token_url = (info.get("authInfo") or {}).get("tokenServicesUrl") or token_url
+    except Exception:
+        pass
+    raw = fetch(token_url, data={"username": layer.username, "password": layer.password, "client": "requestip",
+                                 "expiration": 30, "f": "json"})
+    j = json.loads(raw)
+    if "token" not in j:
+        msg = (j.get("error") or {}).get("message", "login failed")
+        raise SourceError(f"ArcGIS login failed: {msg}"[:200])
+    return j["token"]
 
 
 def _wfs(layer, fetch, cfg):

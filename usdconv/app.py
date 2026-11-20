@@ -47,7 +47,7 @@ def create_app(cfg: Settings | None = None) -> FastAPI:
         try:
             js = JobSpec.model_validate_json(spec)
         except ValidationError as e:
-            raise HTTPException(422, json.loads(e.json())) from e
+            raise HTTPException(422, json.loads(e.json(include_input=False, include_url=False))) from e
         uploads, total = {}, 0
         for f in files:
             data = await f.read(cfg.max_upload_mb * 1024 * 1024 + 1)
@@ -58,7 +58,7 @@ def create_app(cfg: Settings | None = None) -> FastAPI:
         jobs.purge_expired(cfg, store, time.time())
         job_id = secrets.token_urlsafe(16)
         store.create(job_id, js.name, js.model_dump())
-        pool.submit(jobs.run_job, cfg, store, job_id, js.model_dump(), uploads)
+        pool.submit(jobs.run_job, cfg, store, job_id, js, uploads)
         return {"id": job_id}
 
     @app.get("/api/jobs/{job_id}")
